@@ -1,23 +1,80 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { WebSocketServer, WebSocket } from "ws";
-import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { storage } from "./storage";
+import { horoscopeService } from "./services/horoscopeService";
+import { queueService } from "./services/queueService";
 import { emailService } from "./services/emailService";
 import { aiAgent } from "./services/aiAgent";
-import { queueService } from "./services/queueService";
-import { horoscopeService } from "./services/horoscopeService";
-import { horoscopeQueueService } from "./services/horoscopeQueueService";
-import { productionDbService } from "./services/productionDbService";
 import { premiumEmailService } from "./services/premiumEmailService";
 import { cronService } from "./services/cronService";
+import { productionDbService } from "./services/productionDbService";
 import { integrationService } from "./services/integrationService";
-import { authenticateApiKey, requirePermission, logApiUsage, rateLimitIntegration } from "./middleware/integration";
-import { insertCampaignSchema, insertEmailConfigurationSchema } from "@shared/schema";
+import { WebSocketServer, WebSocket } from "ws";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Database connection test endpoint
+  app.get("/api/test/database-connections", async (req, res) => {
+    try {
+      const results = {
+        development: { status: "unknown", database: null, host: null },
+        production: { status: "unknown", database: null, host: null, configured: false }
+      };
+
+      // Test development database
+      try {
+        const devResult = await storage.testConnection();
+        results.development = { 
+          status: "connected", 
+          database: devResult.database,
+          host: devResult.host 
+        };
+      } catch (error: any) {
+        results.development = { 
+          status: "error", 
+          database: null,
+          host: null,
+          error: error.message 
+        };
+      }
+
+      // Test production database (if configured)
+      const prodConfigured = !!process.env.PRODUCTION_DATABASE_URL;
+      results.production.configured = prodConfigured;
+      
+      if (prodConfigured) {
+        try {
+          const prodResult = await productionDbService.testConnection();
+          results.production = { 
+            status: "connected", 
+            database: prodResult.database,
+            host: prodResult.host,
+            configured: true
+          };
+        } catch (error: any) {
+          results.production = { 
+            status: "error", 
+            database: null,
+            host: null,
+            configured: true,
+            error: error.message 
+          };
+        }
+      }
+
+      res.json({
+        message: "Database connection test results",
+        timestamp: new Date().toISOString(),
+        results
+      });
+    } catch (error) {
+      console.error("Error testing database connections:", error);
+      res.status(500).json({ message: "Failed to test database connections" });
+    }
+  });
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -31,43 +88,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dashboard metrics
-  app.get("/api/dashboard/metrics", isAuthenticated, async (req: any, res) => {
+  // Health check endpoint
+  app.get("/api/health", async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      
-      const emailMetrics = await storage.getEmailMetrics(userId);
-      const queueMetrics = await queueService.getMetrics();
-      const campaigns = await storage.getCampaigns(userId);
-      const recentLogs = await storage.getEmailLogs(userId, 10);
+      res.json({
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        service: "Amoeba Horoscope Microservice",
+        version: "1.0.0",
+        cron_active: cronService.isActive()
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Health check failed" });
+    }
+  });
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayMetrics = await storage.getEmailMetrics(userId, today, new Date());
-
-      const metrics = {
-        emailsToday: todayMetrics.total || 0,
-        deliveryRate: emailMetrics.total > 0 ? ((emailMetrics.delivered / emailMetrics.total) * 100).toFixed(1) + '%' : '0%',
-        activeUsers: campaigns.filter(c => c.status === 'active').length,
-        queueDepth: queueMetrics.pending,
-        totalEmails: emailMetrics.total,
-        sentEmails: emailMetrics.sent,
-        deliveredEmails: emailMetrics.delivered,
-        bouncedEmails: emailMetrics.bounced,
-        failedEmails: emailMetrics.failed,
-        activeCampaigns: campaigns.filter(c => c.status === 'active').length,
-        totalCampaigns: campaigns.length,
-        queueMetrics,
-        recentActivity: recentLogs.map(log => ({
-          id: log.id,
-          type: log.status,
-          message: `${log.recipient} - ${log.status === 'delivered' ? 'Email delivered' : log.status}`,
-          details: log.subject,
-          timestamp: log.queuedAt,
-          status: log.status,
-        })),
-      };
-
+  // Dashboard metrics
+  app.get("/api/dashboard/metrics", async (req, res) => {
+    try {
+      const metrics = await storage.getEmailMetrics();
       res.json(metrics);
     } catch (error) {
       console.error("Error fetching dashboard metrics:", error);
@@ -75,11 +114,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Campaign routes
-  app.get("/api/campaigns", isAuthenticated, async (req: any, res) => {
+  // =============================================================================
+  // HOROSCOPE API ENDPOINTS (Public - No Auth Required)
+  // =============================================================================
+
+  // Get today's horoscopes for all zodiac signs
+  app.get("/api/horoscopes/today", async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const campaigns = await storage.getCampaigns(userId);
+      const today = new Date().toISOString().split('T')[0];
+      const horoscopes = await horoscopeService.getDailyHoroscopes(today);
+      
+      res.json({
+        date: today,
+        horoscopes: horoscopes || []
+      });
+    } catch (error) {
+      console.error("Error fetching today's horoscopes:", error);
+      res.status(500).json({ message: "Failed to fetch horoscopes" });
+    }
+  });
+
+  // Get horoscope for a specific zodiac sign
+  app.get("/api/horoscopes/:sign", async (req, res) => {
+    try {
+      const { sign } = req.params;
+      const today = new Date().toISOString().split('T')[0];
+      
+      const horoscope = await horoscopeService.getHoroscopeForSign(sign.toLowerCase(), today);
+      
+      if (!horoscope) {
+        return res.status(404).json({ message: "Horoscope not found for this sign" });
+      }
+      
+      res.json({
+        sign: sign.toLowerCase(),
+        date: today,
+        horoscope
+      });
+    } catch (error) {
+      console.error(`Error fetching horoscope for ${req.params.sign}:`, error);
+      res.status(500).json({ message: "Failed to fetch horoscope" });
+    }
+  });
+
+  // =============================================================================
+  // CAMPAIGN MANAGEMENT (Auth Required)
+  // =============================================================================
+
+  // Get all campaigns
+  app.get("/api/campaigns", isAuthenticated, async (req, res) => {
+    try {
+      const campaigns = await storage.getCampaigns();
       res.json(campaigns);
     } catch (error) {
       console.error("Error fetching campaigns:", error);
@@ -87,29 +172,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/campaigns", isAuthenticated, async (req: any, res) => {
+  // Create a new campaign
+  app.post("/api/campaigns", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const validatedData = insertCampaignSchema.parse({ ...req.body, userId });
-      
-      const campaign = await storage.createCampaign(validatedData);
-      res.json(campaign);
+      const campaign = await storage.createCampaign(req.body);
+      res.status(201).json(campaign);
     } catch (error) {
       console.error("Error creating campaign:", error);
       res.status(500).json({ message: "Failed to create campaign" });
     }
   });
 
-  app.put("/api/campaigns/:id", isAuthenticated, async (req: any, res) => {
+  // Update campaign
+  app.put("/api/campaigns/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const { id } = req.params;
-      
-      const campaign = await storage.updateCampaign(id, userId, req.body);
+      const campaign = await storage.updateCampaign(req.params.id, req.body);
       if (!campaign) {
         return res.status(404).json({ message: "Campaign not found" });
       }
-      
       res.json(campaign);
     } catch (error) {
       console.error("Error updating campaign:", error);
@@ -117,75 +197,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/campaigns/:id", isAuthenticated, async (req: any, res) => {
+  // Delete campaign
+  app.delete("/api/campaigns/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const { id } = req.params;
-      
-      const deleted = await storage.deleteCampaign(id, userId);
-      if (!deleted) {
-        return res.status(404).json({ message: "Campaign not found" });
-      }
-      
-      res.json({ success: true });
+      await storage.deleteCampaign(req.params.id);
+      res.status(204).send();
     } catch (error) {
       console.error("Error deleting campaign:", error);
       res.status(500).json({ message: "Failed to delete campaign" });
     }
   });
 
-  app.post("/api/campaigns/:id/send", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { id } = req.params;
-      
-      const job = await queueService.addCampaignJob(id, userId);
-      res.json({ success: true, jobId: job.id });
-    } catch (error) {
-      console.error("Error sending campaign:", error);
-      res.status(500).json({ message: "Failed to send campaign" });
-    }
-  });
+  // =============================================================================
+  // EMAIL MANAGEMENT (Auth Required)
+  // =============================================================================
 
-  // Email configuration routes
-  app.get("/api/email-configurations", isAuthenticated, async (req: any, res) => {
+  // Send email
+  app.post("/api/emails/send", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const configurations = await storage.getEmailConfigurations(userId);
-      res.json(configurations);
-    } catch (error) {
-      console.error("Error fetching email configurations:", error);
-      res.status(500).json({ message: "Failed to fetch configurations" });
-    }
-  });
-
-  app.post("/api/email-configurations", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const validatedData = insertEmailConfigurationSchema.parse({ ...req.body, userId });
-      
-      const config = await storage.createEmailConfiguration(validatedData);
-      res.json(config);
-    } catch (error) {
-      console.error("Error creating email configuration:", error);
-      res.status(500).json({ message: "Failed to create configuration" });
-    }
-  });
-
-  app.post("/api/email-configurations/test", isAuthenticated, async (req: any, res) => {
-    try {
-      const { provider, apiKey, testEmail } = req.body;
-      
-      const result = await emailService.testConfiguration(provider, apiKey, testEmail);
+      const result = await emailService.sendEmail(req.body);
       res.json(result);
     } catch (error) {
-      console.error("Error testing email configuration:", error);
-      res.status(500).json({ message: "Failed to test configuration" });
+      console.error("Error sending email:", error);
+      res.status(500).json({ message: "Failed to send email" });
     }
   });
 
-  // Queue management routes
-  app.get("/api/queue/metrics", isAuthenticated, async (req, res) => {
+  // Get email providers
+  app.get("/api/emails/providers", isAuthenticated, async (req, res) => {
+    try {
+      const providers = await storage.getEmailProviders();
+      res.json(providers);
+    } catch (error) {
+      console.error("Error fetching email providers:", error);
+      res.status(500).json({ message: "Failed to fetch email providers" });
+    }
+  });
+
+  // Create/update email provider
+  app.post("/api/emails/providers", isAuthenticated, async (req, res) => {
+    try {
+      const provider = await storage.createEmailProvider(req.body);
+      res.status(201).json(provider);
+    } catch (error) {
+      console.error("Error creating email provider:", error);
+      res.status(500).json({ message: "Failed to create email provider" });
+    }
+  });
+
+  // =============================================================================
+  // QUEUE MANAGEMENT (Auth Required)
+  // =============================================================================
+
+  // Get queue metrics
+  app.get("/api/queue/metrics", async (req, res) => {
     try {
       const metrics = await queueService.getMetrics();
       res.json(metrics);
@@ -195,10 +260,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get queue jobs
+  app.get("/api/queue/jobs", isAuthenticated, async (req, res) => {
+    try {
+      const { status, limit = 50, offset = 0 } = req.query;
+      const jobs = await queueService.getJobs({
+        status: status as string,
+        limit: parseInt(limit as string),
+        offset: parseInt(offset as string),
+      });
+      res.json(jobs);
+    } catch (error) {
+      console.error("Error fetching queue jobs:", error);
+      res.status(500).json({ message: "Failed to fetch queue jobs" });
+    }
+  });
+
+  // Add job to queue
+  app.post("/api/queue/jobs", isAuthenticated, async (req, res) => {
+    try {
+      const job = await queueService.addJob(req.body);
+      res.status(201).json(job);
+    } catch (error) {
+      console.error("Error adding job to queue:", error);
+      res.status(500).json({ message: "Failed to add job to queue" });
+    }
+  });
+
+  // Retry failed job
+  app.post("/api/queue/jobs/:id/retry", isAuthenticated, async (req, res) => {
+    try {
+      const job = await queueService.retryJob(req.params.id);
+      res.json(job);
+    } catch (error) {
+      console.error("Error retrying job:", error);
+      res.status(500).json({ message: "Failed to retry job" });
+    }
+  });
+
+  // Cancel job
+  app.delete("/api/queue/jobs/:id", isAuthenticated, async (req, res) => {
+    try {
+      await queueService.cancelJob(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error canceling job:", error);
+      res.status(500).json({ message: "Failed to cancel job" });
+    }
+  });
+
+  // Pause/resume queue
   app.post("/api/queue/pause", isAuthenticated, async (req, res) => {
     try {
-      await queueService.pauseProcessing();
-      res.json({ success: true });
+      await queueService.pause();
+      res.json({ message: "Queue paused successfully" });
     } catch (error) {
       console.error("Error pausing queue:", error);
       res.status(500).json({ message: "Failed to pause queue" });
@@ -207,70 +322,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/queue/resume", isAuthenticated, async (req, res) => {
     try {
-      await queueService.resumeProcessing();
-      res.json({ success: true });
+      await queueService.resume();
+      res.json({ message: "Queue resumed successfully" });
     } catch (error) {
       console.error("Error resuming queue:", error);
       res.status(500).json({ message: "Failed to resume queue" });
     }
   });
 
-  app.post("/api/queue/clear", isAuthenticated, async (req, res) => {
-    try {
-      await queueService.clearQueue();
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error clearing queue:", error);
-      res.status(500).json({ message: "Failed to clear queue" });
-    }
-  });
+  // =============================================================================
+  // AI AGENT (Auth Required)
+  // =============================================================================
 
-  app.post("/api/queue/retry-failed", isAuthenticated, async (req, res) => {
+  // Chat with AI agent
+  app.post("/api/agent/chat", isAuthenticated, async (req, res) => {
     try {
-      await queueService.retryFailedJobs();
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error retrying failed jobs:", error);
-      res.status(500).json({ message: "Failed to retry failed jobs" });
-    }
-  });
-
-  // Agent routes
-  app.post("/api/agent/chat", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
       const { message } = req.body;
-      
-      // Get context for the agent
-      const emailMetrics = await storage.getEmailMetrics(userId);
-      const campaigns = await storage.getCampaigns(userId);
-      const recentLogs = await storage.getEmailLogs(userId, 5);
-      const queueMetrics = await queueService.getMetrics();
-      
-      const context = {
-        userId,
-        systemMetrics: {
-          emailsToday: emailMetrics.total,
-          deliveryRate: emailMetrics.total > 0 ? ((emailMetrics.delivered / emailMetrics.total) * 100).toFixed(1) + '%' : '0%',
-          queueDepth: queueMetrics.pending,
-          activeUsers: campaigns.filter(c => c.status === 'active').length,
-        },
-        recentLogs,
-        campaigns: campaigns.slice(0, 5),
-      };
-      
-      const response = await aiAgent.processMessage(userId, message, context);
+      const response = await aiAgent.chat(message);
       res.json(response);
     } catch (error) {
-      console.error("Error processing agent message:", error);
-      res.status(500).json({ message: "Failed to process message" });
+      console.error("Error in AI agent chat:", error);
+      res.status(500).json({ message: "Failed to process chat message" });
     }
   });
 
-  app.get("/api/agent/conversations", isAuthenticated, async (req: any, res) => {
+  // Get conversation history
+  app.get("/api/agent/conversations", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const conversations = await storage.getAgentConversations(userId);
+      const conversations = await storage.getAgentConversations();
       res.json(conversations);
     } catch (error) {
       console.error("Error fetching conversations:", error);
@@ -278,319 +357,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/agent/analysis", isAuthenticated, async (req: any, res) => {
+  // Get AI suggestions
+  app.get("/api/agent/suggestions", async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const timeframe = req.query.timeframe as 'day' | 'week' | 'month' || 'day';
-      
-      const analysis = await aiAgent.analyzeEmailPerformance(userId, timeframe);
-      res.json(analysis);
-    } catch (error) {
-      console.error("Error generating analysis:", error);
-      res.status(500).json({ message: "Failed to generate analysis" });
-    }
-  });
-
-  app.get("/api/agent/suggestions", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const suggestions = await aiAgent.suggestOptimizations(userId);
+      const suggestions = await aiAgent.suggestOptimizations();
       res.json({ suggestions });
     } catch (error) {
-      console.error("Error fetching suggestions:", error);
-      res.status(500).json({ message: "Failed to fetch suggestions" });
-    }
-  });
-
-  // Email logs
-  app.get("/api/email-logs", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const logs = await storage.getEmailLogs(userId, limit);
-      res.json(logs);
-    } catch (error) {
-      console.error("Error fetching email logs:", error);
-      res.status(500).json({ message: "Failed to fetch email logs" });
-    }
-  });
-
-  // Test email endpoint
-  app.post("/api/send-test", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { to, subject = "Test Email from Amoeba", content = "This is a test email." } = req.body;
-      
-      const result = await emailService.sendEmail(userId, {
-        to,
-        from: '', // Will be determined by service
-        subject,
-        text: content,
-        html: `<p>${content}</p>`,
-      });
-      
-      res.json(result);
-    } catch (error) {
-      console.error("Error sending test email:", error);
-      res.status(500).json({ message: "Failed to send test email" });
+      console.error("Optimization suggestions error:", error);
+      res.json({ suggestions: ["Unable to generate suggestions at this time"] });
     }
   });
 
   // =============================================================================
-  // PUBLIC HOROSCOPE API ENDPOINTS (No authentication required for free users)
+  // ANALYTICS & REPORTING (Auth Required)
   // =============================================================================
 
-  // Get today's horoscope for a specific zodiac sign
-  app.get("/api/horoscope/:sign", async (req, res) => {
+  // Get email analytics
+  app.get("/api/analytics/emails", isAuthenticated, async (req, res) => {
     try {
-      const { sign } = req.params;
-      const horoscope = await horoscopeService.getTodaysHoroscope(sign.toLowerCase());
-      
-      if (!horoscope) {
-        return res.status(404).json({ 
-          message: `No horoscope found for ${sign} today. Horoscopes may still be generating.` 
-        });
-      }
-
-      res.json({
-        sign: sign.toLowerCase(),
-        date: horoscope.date,
-        content: horoscope.content,
-        mood: horoscope.mood,
-        luckNumber: horoscope.luckNumber,
-        luckyColor: horoscope.luckyColor,
-        generatedAt: horoscope.generatedAt
+      const { startDate, endDate } = req.query;
+      const analytics = await storage.getEmailAnalytics({
+        startDate: startDate as string,
+        endDate: endDate as string,
       });
+      res.json(analytics);
     } catch (error) {
-      console.error(`Error fetching horoscope for ${req.params.sign}:`, error);
-      res.status(500).json({ message: "Failed to fetch horoscope" });
+      console.error("Error fetching email analytics:", error);
+      res.status(500).json({ message: "Failed to fetch email analytics" });
     }
   });
 
-  // Get today's horoscopes for all signs
-  app.get("/api/horoscope", async (req, res) => {
+  // Get campaign performance
+  app.get("/api/analytics/campaigns/:id", isAuthenticated, async (req, res) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const horoscopes = await storage.getAllHoroscopesForDate(today);
-      
-      // Include zodiac sign information with each horoscope
-      const zodiacSigns = await storage.getAllZodiacSigns();
-      const signMap = new Map(zodiacSigns.map(s => [s.id, s]));
-      
-      const enrichedHoroscopes = horoscopes.map(h => ({
-        sign: signMap.get(h.zodiacSignId)?.name || 'unknown',
-        symbol: signMap.get(h.zodiacSignId)?.symbol || '?',
-        element: signMap.get(h.zodiacSignId)?.element || 'unknown',
-        date: h.date,
-        content: h.content,
-        mood: h.mood,
-        luckNumber: h.luckNumber,
-        luckyColor: h.luckyColor,
-        generatedAt: h.generatedAt
-      }));
-
-      res.json({
-        date: today,
-        horoscopes: enrichedHoroscopes,
-        total: enrichedHoroscopes.length
-      });
+      const analytics = await storage.getCampaignAnalytics(req.params.id);
+      res.json(analytics);
     } catch (error) {
-      console.error("Error fetching all horoscopes:", error);
-      res.status(500).json({ message: "Failed to fetch horoscopes" });
-    }
-  });
-
-  // Get zodiac sign information
-  app.get("/api/zodiac", async (req, res) => {
-    try {
-      const signs = await storage.getAllZodiacSigns();
-      res.json(signs);
-    } catch (error) {
-      console.error("Error fetching zodiac signs:", error);
-      res.status(500).json({ message: "Failed to fetch zodiac signs" });
-    }
-  });
-
-  // Get specific zodiac sign information
-  app.get("/api/zodiac/:sign", async (req, res) => {
-    try {
-      const { sign } = req.params;
-      const zodiacSign = await storage.getZodiacSignByName(sign.toLowerCase());
-      
-      if (!zodiacSign) {
-        return res.status(404).json({ message: `Zodiac sign '${sign}' not found` });
-      }
-
-      res.json(zodiacSign);
-    } catch (error) {
-      console.error(`Error fetching zodiac sign ${req.params.sign}:`, error);
-      res.status(500).json({ message: "Failed to fetch zodiac sign" });
+      console.error("Error fetching campaign analytics:", error);
+      res.status(500).json({ message: "Failed to fetch campaign analytics" });
     }
   });
 
   // =============================================================================
-  // ADMIN HOROSCOPE MANAGEMENT ENDPOINTS (Authentication required)
+  // SYSTEM CONFIGURATION (Auth Required)
   // =============================================================================
 
-  // Get horoscope generation status and metrics
-  app.get("/api/admin/horoscope/status", isAuthenticated, async (req, res) => {
+  // Get system configurations
+  app.get("/api/system/config", isAuthenticated, async (req, res) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const horoscopes = await storage.getAllHoroscopesForDate(today);
-      const stats = await horoscopeQueueService.getGenerationStats();
-      
-      res.json({
-        date: today,
-        generatedToday: horoscopes.length,
-        totalSigns: 12,
-        isComplete: horoscopes.length === 12,
-        generationStats: stats,
-        horoscopes: horoscopes.map(h => ({
-          zodiacSignId: h.zodiacSignId,
-          mood: h.mood,
-          generatedAt: h.generatedAt
-        }))
-      });
+      const config = await storage.getSystemConfig();
+      res.json(config);
     } catch (error) {
-      console.error("Error fetching horoscope status:", error);
-      res.status(500).json({ message: "Failed to fetch horoscope status" });
+      console.error("Error fetching system config:", error);
+      res.status(500).json({ message: "Failed to fetch system config" });
     }
   });
 
-  // Manually trigger horoscope generation for today
-  app.post("/api/admin/horoscope/generate", isAuthenticated, async (req, res) => {
+  // Update system configuration
+  app.put("/api/system/config", isAuthenticated, async (req, res) => {
     try {
-      const { date } = req.body;
-      const targetDate = date || new Date().toISOString().split('T')[0];
-      
-      await horoscopeQueueService.scheduleDailyHoroscopeGeneration(targetDate, 20); // High priority
-      
-      res.json({ 
-        message: `Horoscope generation scheduled for ${targetDate}`,
-        date: targetDate
-      });
+      const config = await storage.updateSystemConfig(req.body);
+      res.json(config);
     } catch (error) {
-      console.error("Error scheduling horoscope generation:", error);
-      res.status(500).json({ message: "Failed to schedule horoscope generation" });
-    }
-  });
-
-  // Initialize daily horoscope generation (for testing/setup)
-  app.post("/api/admin/horoscope/initialize", isAuthenticated, async (req, res) => {
-    try {
-      await horoscopeQueueService.scheduleRecurringDailyGeneration();
-      
-      res.json({ 
-        message: "Daily horoscope generation initialized successfully"
-      });
-    } catch (error) {
-      console.error("Error initializing horoscope generation:", error);
-      res.status(500).json({ message: "Failed to initialize horoscope generation" });
-    }
-  });
-
-  // Get premium user sun chart data (placeholder for when production DB is connected)
-  app.get("/api/admin/users/:userId/sunchart", isAuthenticated, async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const sunChart = await storage.getUserSunChart(userId);
-      
-      if (!sunChart) {
-        return res.status(404).json({ message: "Sun chart not found for user" });
-      }
-
-      res.json(sunChart);
-    } catch (error) {
-      console.error("Error fetching user sun chart:", error);
-      res.status(500).json({ message: "Failed to fetch sun chart" });
+      console.error("Error updating system config:", error);
+      res.status(500).json({ message: "Failed to update system config" });
     }
   });
 
   // =============================================================================
-  // PRODUCTION DATABASE ANALYSIS ENDPOINTS
+  // INTEGRATION MANAGEMENT (Auth Required)
   // =============================================================================
 
-  // Analyze production database schema
-  app.get("/api/admin/production/schema", isAuthenticated, async (req, res) => {
+  // Get integrations
+  app.get("/api/integrations", isAuthenticated, async (req, res) => {
     try {
-      const schema = await productionDbService.getProductionSchema();
-      res.json({
-        message: "Production database schema analyzed",
-        tables: schema.length,
-        schema: schema
-      });
+      const integrations = await storage.getIntegrations();
+      res.json(integrations);
     } catch (error) {
-      console.error("Error analyzing production schema:", error);
-      res.status(500).json({ message: "Failed to analyze production database schema" });
+      console.error("Error fetching integrations:", error);
+      res.status(500).json({ message: "Failed to fetch integrations" });
     }
   });
 
-  // Get sample data from a production table
-  app.get("/api/admin/production/sample/:tableName", isAuthenticated, async (req, res) => {
+  // Create API key
+  app.post("/api/integrations/keys", isAuthenticated, async (req, res) => {
     try {
-      const { tableName } = req.params;
-      const limit = parseInt(req.query.limit as string) || 5;
-      
-      const sampleData = await productionDbService.getSampleData(tableName, limit);
-      res.json({
-        tableName,
-        sampleCount: sampleData.length,
-        data: sampleData
-      });
+      const apiKey = await integrationService.createApiKey(req.body);
+      res.status(201).json(apiKey);
     } catch (error) {
-      console.error(`Error fetching sample data from ${req.params.tableName}:`, error);
-      res.status(500).json({ message: "Failed to fetch sample data" });
-    }
-  });
-
-  // Get premium users from production database
-  app.get("/api/admin/production/premium-users", isAuthenticated, async (req, res) => {
-    try {
-      const premiumUsers = await productionDbService.getPremiumUsers();
-      res.json({
-        count: premiumUsers.length,
-        users: premiumUsers
-      });
-    } catch (error) {
-      console.error("Error fetching premium users:", error);
-      res.status(500).json({ message: "Failed to fetch premium users" });
-    }
-  });
-
-  // Get user sun chart data from production database
-  app.get("/api/admin/production/sun-charts", isAuthenticated, async (req, res) => {
-    try {
-      const sunCharts = await productionDbService.getUserSunChartData();
-      res.json({
-        count: sunCharts.length,
-        sunCharts: sunCharts
-      });
-    } catch (error) {
-      console.error("Error fetching sun chart data:", error);
-      res.status(500).json({ message: "Failed to fetch sun chart data" });
+      console.error("Error creating API key:", error);
+      res.status(500).json({ message: "Failed to create API key" });
     }
   });
 
   // =============================================================================
-  // AUTOMATED CRON MANAGEMENT ENDPOINTS
+  // CRON JOB MANAGEMENT (Auth Required)
   // =============================================================================
 
-  // Get cron service status
-  app.get("/api/admin/cron/status", isAuthenticated, async (req, res) => {
+  // Get cron job status
+  app.get("/api/cron/status", isAuthenticated, async (req, res) => {
     try {
       const status = cronService.getStatus();
-      res.json({
-        message: "Cron service status retrieved",
-        ...status
-      });
+      res.json(status);
     } catch (error) {
-      console.error("Error getting cron status:", error);
-      res.status(500).json({ message: "Failed to get cron status" });
+      console.error("Error fetching cron status:", error);
+      res.status(500).json({ message: "Failed to fetch cron status" });
     }
   });
 
   // Manually trigger horoscope generation
-  app.post("/api/admin/cron/trigger-horoscopes", isAuthenticated, async (req, res) => {
+  app.post("/api/cron/trigger-horoscopes", isAuthenticated, async (req, res) => {
     try {
       const { date } = req.body;
       const result = await cronService.triggerHoroscopeGeneration(date);
@@ -606,7 +482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Manually trigger premium emails
-  app.post("/api/admin/cron/trigger-emails", isAuthenticated, async (req, res) => {
+  app.post("/api/cron/trigger-emails", isAuthenticated, async (req, res) => {
     try {
       const { date } = req.body;
       const result = await cronService.triggerPremiumEmails(date);
@@ -655,7 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         message: "Premium email test completed",
         date: targetDate,
-        ...result
+        result: result
       });
     } catch (error) {
       console.error("Error in test premium email distribution:", error);
@@ -667,321 +543,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/test/production-users", async (req, res) => {
     try {
       const premiumUsers = await productionDbService.getPremiumUsers();
-      const sunCharts = await productionDbService.getUserSunChartData();
       
       res.json({
-        message: "Production database test completed",
-        premiumUsers: premiumUsers.length,
-        usersWithSunCharts: sunCharts.length,
-        sampleUsers: premiumUsers.slice(0, 3).map(u => ({
-          id: u.id,
-          email: u.email.substring(0, 3) + "***", // Obfuscate email for privacy
-          zodiacSign: u.zodiacSign,
-          isPremium: u.isPremium
-        }))
+        message: "Production database connection test",
+        userCount: premiumUsers.length,
+        users: premiumUsers.slice(0, 5) // Return first 5 users as sample
       });
     } catch (error) {
-      console.error("Error in production database test:", error);
-      res.status(500).json({ message: "Failed to test production database" });
+      console.error("Error testing production database:", error);
+      res.status(500).json({ 
+        message: "Failed to connect to production database",
+        error: error.message 
+      });
     }
   });
 
-  // ====== INTEGRATION API ENDPOINTS ======
-  // Public API endpoints for external integrations (like Zodiac Buddy)
-  
-  // Health check endpoint (no auth required)
-  app.get('/api/integration/health', (req, res) => {
-    res.json({
-      status: 'healthy',
-      service: 'Amoeba Horoscope Service',
-      version: '1.0.0',
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  // Get today's horoscopes for all signs (public endpoint)
-  app.get('/api/integration/horoscopes/today', 
-    authenticateApiKey, 
-    requirePermission('read:horoscopes'),
-    logApiUsage,
-    rateLimitIntegration(200, 60000), // 200 requests per minute
-    async (req, res) => {
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        const horoscopes = await storage.getAllHoroscopesForDate(today);
-        
-        if (horoscopes.length === 0) {
-          return res.status(404).json({
-            error: 'Not Found',
-            message: 'No horoscopes available for today',
-            date: today,
-          });
-        }
-
-        // Transform data for external consumption
-        const transformedHoroscopes = await Promise.all(
-          horoscopes.map(async (h) => {
-            const sign = await storage.getZodiacSignByName(h.zodiacSignId.toString());
-            return {
-              sign: sign?.name,
-              content: h.content,
-              mood: h.mood,
-              luckNumber: h.luckNumber,
-              luckyColor: h.luckyColor,
-              date: h.date,
-              generatedAt: h.generatedAt,
-            };
-          })
-        );
-
-        res.json({
-          date: today,
-          horoscopes: transformedHoroscopes,
-          total: transformedHoroscopes.length,
-        });
-      } catch (error) {
-        console.error('Error fetching today\'s horoscopes:', error);
-        res.status(500).json({
-          error: 'Internal Server Error',
-          message: 'Failed to fetch horoscopes',
-        });
-      }
-    }
-  );
-
-  // Get horoscope for specific date and sign
-  app.get('/api/integration/horoscopes/:sign/:date',
-    authenticateApiKey,
-    requirePermission('read:horoscopes'),
-    logApiUsage,
-    rateLimitIntegration(500, 60000), // 500 requests per minute
-    async (req, res) => {
-      try {
-        const { sign, date } = req.params;
-        
-        // Validate date format
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-          return res.status(400).json({
-            error: 'Bad Request',
-            message: 'Date must be in YYYY-MM-DD format',
-          });
-        }
-
-        const horoscope = await storage.getHoroscopeBySignAndDate(sign.toLowerCase(), date);
-        
-        if (!horoscope) {
-          return res.status(404).json({
-            error: 'Not Found',
-            message: `No horoscope found for ${sign} on ${date}`,
-          });
-        }
-
-        res.json({
-          sign: sign.toLowerCase(),
-          date,
-          content: horoscope.content,
-          mood: horoscope.mood,
-          luckNumber: horoscope.luckNumber,
-          luckyColor: horoscope.luckyColor,
-          generatedAt: horoscope.generatedAt,
-        });
-      } catch (error) {
-        console.error('Error fetching horoscope:', error);
-        res.status(500).json({
-          error: 'Internal Server Error',
-          message: 'Failed to fetch horoscope',
-        });
-      }
-    }
-  );
-
-  // Bulk export endpoint for efficient data transfer
-  app.get('/api/integration/horoscopes/bulk/:startDate/:endDate',
-    authenticateApiKey,
-    requirePermission('read:bulk'),
-    logApiUsage,
-    rateLimitIntegration(10, 60000), // 10 bulk requests per minute
-    async (req, res) => {
-      try {
-        const { startDate, endDate } = req.params;
-        
-        // Validate date formats
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
-          return res.status(400).json({
-            error: 'Bad Request',
-            message: 'Dates must be in YYYY-MM-DD format',
-          });
-        }
-
-        // Limit date range to prevent abuse
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const daysDiff = Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
-        
-        if (daysDiff > 30) {
-          return res.status(400).json({
-            error: 'Bad Request',
-            message: 'Date range cannot exceed 30 days',
-          });
-        }
-
-        // This would need a new storage method for date range queries
-        // For now, we'll get individual days
-        const horoscopesByDate: Record<string, any[]> = {};
-        const currentDate = new Date(startDate);
-        
-        while (currentDate <= end) {
-          const dateStr = currentDate.toISOString().split('T')[0];
-          const dayHoroscopes = await storage.getAllHoroscopesForDate(dateStr);
-          
-          if (dayHoroscopes.length > 0) {
-            horoscopesByDate[dateStr] = await Promise.all(
-              dayHoroscopes.map(async (h) => {
-                const sign = await storage.getZodiacSignByName(h.zodiacSignId.toString());
-                return {
-                  sign: sign?.name,
-                  content: h.content,
-                  mood: h.mood,
-                  luckNumber: h.luckNumber,
-                  luckyColor: h.luckyColor,
-                };
-              })
-            );
-          }
-          
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
-
-        res.json({
-          startDate,
-          endDate,
-          data: horoscopesByDate,
-          totalDays: Object.keys(horoscopesByDate).length,
-        });
-      } catch (error) {
-        console.error('Error fetching bulk horoscopes:', error);
-        res.status(500).json({
-          error: 'Internal Server Error',
-          message: 'Failed to fetch bulk horoscopes',
-        });
-      }
-    }
-  );
-
-  // Integration analytics endpoint
-  app.get('/api/integration/analytics',
-    authenticateApiKey,
-    requirePermission('read:analytics'),
-    logApiUsage,
-    async (req, res) => {
-      try {
-        const days = parseInt(req.query.days as string) || 7;
-        const analytics = await integrationService.getIntegrationAnalytics(days);
-        
-        res.json({
-          period: `${days} days`,
-          ...analytics,
-        });
-      } catch (error) {
-        console.error('Error fetching integration analytics:', error);
-        res.status(500).json({
-          error: 'Internal Server Error',
-          message: 'Failed to fetch analytics',
-        });
-      }
-    }
-  );
-
-  // Webhook registration endpoint  
-  app.post('/api/integration/webhooks',
-    authenticateApiKey,
-    requirePermission('manage:webhooks'),
-    logApiUsage,
-    async (req, res) => {
-      try {
-        const { name, url, events } = req.body;
-        
-        if (!name || !url || !events || !Array.isArray(events)) {
-          return res.status(400).json({
-            error: 'Bad Request',
-            message: 'Name, URL, and events array are required',
-          });
-        }
-
-        const webhook = await integrationService.registerWebhook({
-          name,
-          url,
-          events,
-        });
-
-        res.status(201).json({
-          id: webhook.id,
-          name: webhook.name,
-          url: webhook.url,
-          events: webhook.events,
-          isActive: webhook.isActive,
-          createdAt: webhook.createdAt,
-        });
-      } catch (error) {
-        console.error('Error registering webhook:', error);
-        res.status(500).json({
-          error: 'Internal Server Error',
-          message: 'Failed to register webhook',
-        });
-      }
-    }
-  );
-
+  // Create and configure WebSocket server
   const httpServer = createServer(app);
-
-  // WebSocket setup for real-time updates
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
+
+  // WebSocket connection handling
   wss.on('connection', (ws: WebSocket) => {
     console.log('WebSocket client connected');
     
-    ws.on('message', (message: string) => {
+    ws.on('message', (message: Buffer) => {
       try {
-        const data = JSON.parse(message);
+        const data = JSON.parse(message.toString());
         console.log('WebSocket message received:', data);
         
-        // Handle different message types
-        switch (data.type) {
-          case 'subscribe':
-            // Subscribe to real-time updates
-            ws.send(JSON.stringify({ type: 'subscribed', message: 'Connected to real-time updates' }));
-            break;
-          default:
-            ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
+        if (data.type === 'subscribe') {
+          ws.send(JSON.stringify({
+            type: 'subscribed',
+            message: 'Connected to real-time updates'
+          }));
         }
       } catch (error) {
-        console.error('WebSocket message error:', error);
-        ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
+        console.error('Error processing WebSocket message:', error);
       }
     });
-    
+
     ws.on('close', () => {
       console.log('WebSocket client disconnected');
     });
-    
-    // Send periodic updates
-    const updateInterval = setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) {
-        // Send real-time metrics update
-        ws.send(JSON.stringify({
-          type: 'metrics_update',
-          data: {
-            timestamp: new Date().toISOString(),
-            // This would include real metrics in production
-          }
-        }));
-      }
-    }, 5000);
-    
-    ws.on('close', () => {
-      clearInterval(updateInterval);
+
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
     });
   });
+
+  // Send periodic updates to all connected clients
+  setInterval(() => {
+    const message = JSON.stringify({
+      type: 'metrics_update',
+      timestamp: new Date().toISOString()
+    });
+
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }, 5000);
 
   return httpServer;
 }
