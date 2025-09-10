@@ -193,11 +193,11 @@ export const horoscopeGenerations = pgTable("horoscope_generations", {
   status: varchar("status").notNull().default('pending'), // 'pending', 'processing', 'completed', 'failed'
   totalSigns: integer("total_signs").default(12),
   completedSigns: integer("completed_signs").default(0),
-  astrologyDataId: uuid("astrology_data_id").references(() => astrologyDataCache.id),
-  generationJobIds: jsonb("generation_job_ids"), // array of related queue job IDs
+  // Removed astrologyDataId to match production database schema
+  // Removed generationJobIds to match production database schema
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
-  error: text("error"),
+  // Removed error column to match production database schema
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("idx_horoscope_gen_date").on(table.date),
@@ -256,12 +256,13 @@ export const userSunChartsRelations = relations(userSunCharts, ({ one }) => ({
   }),
 }));
 
-export const horoscopeGenerationsRelations = relations(horoscopeGenerations, ({ one }) => ({
-  astrologyData: one(astrologyDataCache, {
-    fields: [horoscopeGenerations.astrologyDataId],
-    references: [astrologyDataCache.id],
-  }),
-}));
+// Removed horoscopeGenerationsRelations because astrologyDataId field was removed to match production schema
+// export const horoscopeGenerationsRelations = relations(horoscopeGenerations, ({ one }) => ({
+//   astrologyData: one(astrologyDataCache, {
+//     fields: [horoscopeGenerations.astrologyDataId],
+//     references: [astrologyDataCache.id],
+//   }),
+// }));
 
 // Insert schemas
 export const insertEmailConfigurationSchema = createInsertSchema(emailConfigurations).omit({

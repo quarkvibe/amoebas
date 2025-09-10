@@ -148,10 +148,10 @@ export class ProductionDbService {
           u.stripe_customer_id,
           u.stripe_subscription_id,
           u.created_at,
-          bc.sun_sign,
+          bc.chart_data,
           bc.birth_date,
           bc.birth_time,
-          bc.birth_location
+          bc.location as birth_location
         FROM users u
         LEFT JOIN birth_charts bc ON u.id = bc.user_id
         WHERE u.subscription_status IN ('premium', 'active', 'paid')
@@ -172,7 +172,7 @@ export class ProductionDbService {
         birthDate: row.birth_date,
         birthTime: row.birth_time,
         birthLocation: row.birth_location,
-        zodiacSign: row.sun_sign,
+        zodiacSign: this.extractZodiacSign(row.chart_data, row.birth_date),
         createdAt: row.created_at
       }));
     } catch (error) {
@@ -194,17 +194,16 @@ export class ProductionDbService {
           u.email,
           u.subscription_status,
           u.subscription_plan,
-          bc.sun_sign,
+          bc.chart_data,
           bc.birth_date,
           bc.birth_time,
-          bc.birth_location,
+          bc.location as birth_location,
           bc.latitude,
           bc.longitude,
           bc.timezone
         FROM users u
         INNER JOIN birth_charts bc ON u.id = bc.user_id
-        WHERE bc.sun_sign IS NOT NULL 
-          AND bc.birth_date IS NOT NULL
+        WHERE bc.birth_date IS NOT NULL
           AND (u.subscription_status IN ('premium', 'active', 'paid')
                OR u.subscription_plan != 'free'
                OR u.stripe_subscription_id IS NOT NULL)
@@ -216,7 +215,7 @@ export class ProductionDbService {
       return result.rows.map(row => ({
         userId: row.user_id,
         email: row.email,
-        zodiacSign: row.sun_sign,
+        zodiacSign: this.extractZodiacSign(row.chart_data, row.birth_date),
         birthDate: row.birth_date,
         birthTime: row.birth_time,
         birthLocation: row.birth_location,
@@ -270,7 +269,7 @@ export class ProductionDbService {
       const client = await this.pool.connect();
       
       const result = await client.query(`
-        SELECT sun_sign 
+        SELECT chart_data, birth_date
         FROM birth_charts 
         WHERE user_id = $1;
       `, [userId]);
@@ -281,7 +280,7 @@ export class ProductionDbService {
         return null;
       }
       
-      return result.rows[0].sun_sign;
+      return this.extractZodiacSign(result.rows[0].chart_data, result.rows[0].birth_date);
     } catch (error) {
       console.error('Error getting user zodiac sign:', error);
       return null;
@@ -293,6 +292,55 @@ export class ProductionDbService {
    */
   async close(): Promise<void> {
     await this.pool.end();
+  }
+
+  /**
+   * Extract zodiac sign from chart data or calculate from birth date
+   */
+  private extractZodiacSign(chartData: any, birthDate: string | Date): string | null {
+    try {
+      // Try to extract from chart_data JSON if it exists
+      if (chartData && typeof chartData === 'object') {
+        // Check various possible keys in the chart data
+        if (chartData.sun_sign) return chartData.sun_sign.toLowerCase();
+        if (chartData.zodiac_sign) return chartData.zodiac_sign.toLowerCase();
+        if (chartData.sun?.sign) return chartData.sun.sign.toLowerCase();
+        if (chartData.planets?.sun?.sign) return chartData.planets.sun.sign.toLowerCase();
+      }
+
+      // Fallback: Calculate from birth date
+      if (birthDate) {
+        return this.calculateZodiacSignFromDate(new Date(birthDate));
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error extracting zodiac sign:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Calculate zodiac sign from birth date
+   */
+  private calculateZodiacSignFromDate(birthDate: Date): string {
+    const month = birthDate.getMonth() + 1; // getMonth() returns 0-11
+    const day = birthDate.getDate();
+
+    if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'aries';
+    if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return 'taurus';
+    if ((month === 5 && day >= 21) || (month === 6 && day <= 20)) return 'gemini';
+    if ((month === 6 && day >= 21) || (month === 7 && day <= 22)) return 'cancer';
+    if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return 'leo';
+    if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return 'virgo';
+    if ((month === 9 && day >= 23) || (month === 10 && day <= 22)) return 'libra';
+    if ((month === 10 && day >= 23) || (month === 11 && day <= 21)) return 'scorpio';
+    if ((month === 11 && day >= 22) || (month === 12 && day <= 21)) return 'sagittarius';
+    if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return 'capricorn';
+    if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return 'aquarius';
+    if ((month === 2 && day >= 19) || (month === 3 && day <= 20)) return 'pisces';
+
+    return 'aries'; // Default fallback
   }
 }
 
