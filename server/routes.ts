@@ -16,65 +16,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  // Database connection test endpoint
-  app.get("/api/test/database-connections", async (req, res) => {
-    try {
-      const results = {
-        development: { status: "unknown", database: null, host: null },
-        production: { status: "unknown", database: null, host: null, configured: false }
-      };
-
-      // Test development database
-      try {
-        const devResult = await storage.testConnection();
-        results.development = { 
-          status: "connected", 
-          database: devResult.database,
-          host: devResult.host 
-        };
-      } catch (error: any) {
-        results.development = { 
-          status: "error", 
-          database: null,
-          host: null,
-          error: error.message 
-        };
-      }
-
-      // Test production database (if configured)
-      const prodConfigured = !!process.env.PRODUCTION_DATABASE_URL;
-      results.production.configured = prodConfigured;
-      
-      if (prodConfigured) {
-        try {
-          const prodResult = await productionDbService.testConnection();
-          results.production = { 
-            status: "connected", 
-            database: prodResult.database,
-            host: prodResult.host,
-            configured: true
-          };
-        } catch (error: any) {
-          results.production = { 
-            status: "error", 
-            database: null,
-            host: null,
-            configured: true,
-            error: error.message 
-          };
-        }
-      }
-
-      res.json({
-        message: "Database connection test results",
-        timestamp: new Date().toISOString(),
-        results
-      });
-    } catch (error) {
-      console.error("Error testing database connections:", error);
-      res.status(500).json({ message: "Failed to test database connections" });
-    }
-  });
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
