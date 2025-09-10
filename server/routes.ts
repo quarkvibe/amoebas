@@ -8,6 +8,7 @@ import { aiAgent } from "./services/aiAgent";
 import { queueService } from "./services/queueService";
 import { horoscopeService } from "./services/horoscopeService";
 import { horoscopeQueueService } from "./services/horoscopeQueueService";
+import { productionDbService } from "./services/productionDbService";
 import { insertCampaignSchema, insertEmailConfigurationSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -498,6 +499,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user sun chart:", error);
       res.status(500).json({ message: "Failed to fetch sun chart" });
+    }
+  });
+
+  // =============================================================================
+  // PRODUCTION DATABASE ANALYSIS ENDPOINTS
+  // =============================================================================
+
+  // Analyze production database schema
+  app.get("/api/admin/production/schema", isAuthenticated, async (req, res) => {
+    try {
+      const schema = await productionDbService.getProductionSchema();
+      res.json({
+        message: "Production database schema analyzed",
+        tables: schema.length,
+        schema: schema
+      });
+    } catch (error) {
+      console.error("Error analyzing production schema:", error);
+      res.status(500).json({ message: "Failed to analyze production database schema" });
+    }
+  });
+
+  // Get sample data from a production table
+  app.get("/api/admin/production/sample/:tableName", isAuthenticated, async (req, res) => {
+    try {
+      const { tableName } = req.params;
+      const limit = parseInt(req.query.limit as string) || 5;
+      
+      const sampleData = await productionDbService.getSampleData(tableName, limit);
+      res.json({
+        tableName,
+        sampleCount: sampleData.length,
+        data: sampleData
+      });
+    } catch (error) {
+      console.error(`Error fetching sample data from ${req.params.tableName}:`, error);
+      res.status(500).json({ message: "Failed to fetch sample data" });
+    }
+  });
+
+  // Get premium users from production database
+  app.get("/api/admin/production/premium-users", isAuthenticated, async (req, res) => {
+    try {
+      const premiumUsers = await productionDbService.getPremiumUsers();
+      res.json({
+        count: premiumUsers.length,
+        users: premiumUsers
+      });
+    } catch (error) {
+      console.error("Error fetching premium users:", error);
+      res.status(500).json({ message: "Failed to fetch premium users" });
+    }
+  });
+
+  // Get user sun chart data from production database
+  app.get("/api/admin/production/sun-charts", isAuthenticated, async (req, res) => {
+    try {
+      const sunCharts = await productionDbService.getUserSunChartData();
+      res.json({
+        count: sunCharts.length,
+        sunCharts: sunCharts
+      });
+    } catch (error) {
+      console.error("Error fetching sun chart data:", error);
+      res.status(500).json({ message: "Failed to fetch sun chart data" });
     }
   });
 
