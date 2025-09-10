@@ -100,7 +100,7 @@ export class HoroscopeService {
       moonPhase: apiData.moon_phase,
       apiSource: 'freeastrology',
       rawData: apiData,
-      expiresAt: expiresAt.toISOString(),
+      expiresAt: expiresAt,
     };
 
     return await storage.createAstrologyDataCache(cacheData);
@@ -124,8 +124,8 @@ ZODIAC SIGN DETAILS:
 - Element: ${zodiacSign.element}
 - Quality: ${zodiacSign.quality}
 - Date Range: ${zodiacSign.dateRange}
-- Ruling Planet: ${zodiacSign.traits?.ruling_planet || 'unknown'}
-- Key Traits: ${zodiacSign.traits?.keywords?.join(', ') || 'none'}
+- Ruling Planet: ${(zodiacSign.traits as any)?.ruling_planet || 'unknown'}
+- Key Traits: ${(zodiacSign.traits as any)?.keywords?.join(', ') || 'none'}
 
 CURRENT PLANETARY POSITIONS:
 ${JSON.stringify(astrologyData.planetaryPositions, null, 2)}
@@ -236,7 +236,7 @@ Format as JSON:
         status: 'processing',
         totalSigns: 12,
         completedSigns: 0,
-        startedAt: new Date().toISOString(),
+        startedAt: new Date(),
       });
 
       // Get astrology data for the date
@@ -299,7 +299,7 @@ Format as JSON:
       // Mark generation as completed
       await storage.updateHoroscopeGeneration(generation.id, {
         status: 'completed',
-        completedAt: new Date().toISOString(),
+        completedAt: new Date(),
       });
 
       console.log(`Successfully generated ${completedCount}/12 horoscopes for ${date}`);
@@ -326,7 +326,7 @@ ZODIAC SIGN DETAILS:
 - Sign: ${zodiacSign.name} (${zodiacSign.symbol})
 - Element: ${zodiacSign.element}
 - Quality: ${zodiacSign.quality}
-- Ruling Planet: ${zodiacSign.traits?.ruling_planet || 'unknown'}
+- Ruling Planet: ${(zodiacSign.traits as any)?.ruling_planet || 'unknown'}
 
 CURRENT PLANETARY POSITIONS:
 ${JSON.stringify(astrologyData.planetaryPositions, null, 2)}

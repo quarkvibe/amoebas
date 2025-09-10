@@ -6,6 +6,11 @@ import {
   queueJobs,
   agentConversations,
   systemConfigurations,
+  zodiacSigns,
+  horoscopes,
+  userSunCharts,
+  astrologyDataCache,
+  horoscopeGenerations,
   type User,
   type UpsertUser,
   type Campaign,
@@ -20,6 +25,15 @@ import {
   type InsertAgentConversation,
   type SystemConfiguration,
   type InsertSystemConfiguration,
+  type ZodiacSign,
+  type Horoscope,
+  type InsertHoroscope,
+  type UserSunChart,
+  type InsertUserSunChart,
+  type AstrologyDataCache,
+  type InsertAstrologyDataCache,
+  type HoroscopeGeneration,
+  type InsertHoroscopeGeneration,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql, count, gte, lte } from "drizzle-orm";
@@ -61,6 +75,27 @@ export interface IStorage {
   // System configuration operations
   getSystemConfiguration(userId: string, key: string): Promise<SystemConfiguration | undefined>;
   setSystemConfiguration(config: InsertSystemConfiguration): Promise<SystemConfiguration>;
+  
+  // Horoscope operations
+  getAllZodiacSigns(): Promise<ZodiacSign[]>;
+  getZodiacSignByName(name: string): Promise<ZodiacSign | undefined>;
+  
+  // Astrology data operations
+  getAstrologyDataByDate(date: string): Promise<AstrologyDataCache | undefined>;
+  createAstrologyDataCache(data: InsertAstrologyDataCache): Promise<AstrologyDataCache>;
+  
+  // Horoscope generation operations
+  createHoroscopeGeneration(generation: InsertHoroscopeGeneration): Promise<HoroscopeGeneration>;
+  updateHoroscopeGeneration(id: string, updates: Partial<HoroscopeGeneration>): Promise<void>;
+  
+  // Daily horoscope operations
+  createHoroscope(horoscope: InsertHoroscope): Promise<Horoscope>;
+  getHoroscopeBySignAndDate(signName: string, date: string): Promise<Horoscope | undefined>;
+  getAllHoroscopesForDate(date: string): Promise<Horoscope[]>;
+  
+  // Premium user operations
+  getUserSunChart(userId: string): Promise<UserSunChart | undefined>;
+  createUserSunChart(sunChart: InsertUserSunChart): Promise<UserSunChart>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -267,6 +302,82 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return newConfig;
+  }
+
+  // Horoscope operations
+  async getAllZodiacSigns(): Promise<ZodiacSign[]> {
+    return await db.select().from(zodiacSigns).orderBy(zodiacSigns.id);
+  }
+
+  async getZodiacSignByName(name: string): Promise<ZodiacSign | undefined> {
+    const [sign] = await db.select()
+      .from(zodiacSigns)
+      .where(eq(zodiacSigns.name, name.toLowerCase()));
+    return sign;
+  }
+
+  // Astrology data operations
+  async getAstrologyDataByDate(date: string): Promise<AstrologyDataCache | undefined> {
+    const [data] = await db.select()
+      .from(astrologyDataCache)
+      .where(eq(astrologyDataCache.date, date));
+    return data;
+  }
+
+  async createAstrologyDataCache(data: InsertAstrologyDataCache): Promise<AstrologyDataCache> {
+    const [newData] = await db.insert(astrologyDataCache).values(data).returning();
+    return newData;
+  }
+
+  // Horoscope generation operations
+  async createHoroscopeGeneration(generation: InsertHoroscopeGeneration): Promise<HoroscopeGeneration> {
+    const [newGeneration] = await db.insert(horoscopeGenerations).values(generation).returning();
+    return newGeneration;
+  }
+
+  async updateHoroscopeGeneration(id: string, updates: Partial<HoroscopeGeneration>): Promise<void> {
+    await db.update(horoscopeGenerations)
+      .set(updates)
+      .where(eq(horoscopeGenerations.id, id));
+  }
+
+  // Daily horoscope operations
+  async createHoroscope(horoscope: InsertHoroscope): Promise<Horoscope> {
+    const [newHoroscope] = await db.insert(horoscopes).values(horoscope).returning();
+    return newHoroscope;
+  }
+
+  async getHoroscopeBySignAndDate(signName: string, date: string): Promise<Horoscope | undefined> {
+    const [horoscope] = await db.select()
+      .from(horoscopes)
+      .innerJoin(zodiacSigns, eq(horoscopes.zodiacSignId, zodiacSigns.id))
+      .where(and(
+        eq(zodiacSigns.name, signName.toLowerCase()),
+        eq(horoscopes.date, date)
+      ));
+    return horoscope?.horoscopes;
+  }
+
+  async getAllHoroscopesForDate(date: string): Promise<Horoscope[]> {
+    const results = await db.select()
+      .from(horoscopes)
+      .innerJoin(zodiacSigns, eq(horoscopes.zodiacSignId, zodiacSigns.id))
+      .where(eq(horoscopes.date, date))
+      .orderBy(zodiacSigns.id);
+    return results.map(r => r.horoscopes);
+  }
+
+  // Premium user operations
+  async getUserSunChart(userId: string): Promise<UserSunChart | undefined> {
+    const [sunChart] = await db.select()
+      .from(userSunCharts)
+      .where(eq(userSunCharts.userId, userId));
+    return sunChart;
+  }
+
+  async createUserSunChart(sunChart: InsertUserSunChart): Promise<UserSunChart> {
+    const [newSunChart] = await db.insert(userSunCharts).values(sunChart).returning();
+    return newSunChart;
   }
 }
 
