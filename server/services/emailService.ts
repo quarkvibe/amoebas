@@ -83,7 +83,7 @@ export class EmailService {
           name: params.fromName || '',
         },
         subject: params.subject,
-        text: params.text,
+        text: params.text || '',
         html: params.html,
       });
 

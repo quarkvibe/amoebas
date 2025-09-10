@@ -10,6 +10,7 @@ import { horoscopeService } from "./services/horoscopeService";
 import { horoscopeQueueService } from "./services/horoscopeQueueService";
 import { productionDbService } from "./services/productionDbService";
 import { premiumEmailService } from "./services/premiumEmailService";
+import { cronService } from "./services/cronService";
 import { insertCampaignSchema, insertEmailConfigurationSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -565,6 +566,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching sun chart data:", error);
       res.status(500).json({ message: "Failed to fetch sun chart data" });
+    }
+  });
+
+  // =============================================================================
+  // AUTOMATED CRON MANAGEMENT ENDPOINTS
+  // =============================================================================
+
+  // Get cron service status
+  app.get("/api/admin/cron/status", isAuthenticated, async (req, res) => {
+    try {
+      const status = cronService.getStatus();
+      res.json({
+        message: "Cron service status retrieved",
+        ...status
+      });
+    } catch (error) {
+      console.error("Error getting cron status:", error);
+      res.status(500).json({ message: "Failed to get cron status" });
+    }
+  });
+
+  // Manually trigger horoscope generation
+  app.post("/api/admin/cron/trigger-horoscopes", isAuthenticated, async (req, res) => {
+    try {
+      const { date } = req.body;
+      const result = await cronService.triggerHoroscopeGeneration(date);
+      
+      res.json({
+        message: "Horoscope generation triggered successfully",
+        ...result
+      });
+    } catch (error) {
+      console.error("Error triggering horoscope generation:", error);
+      res.status(500).json({ message: "Failed to trigger horoscope generation" });
+    }
+  });
+
+  // Manually trigger premium emails
+  app.post("/api/admin/cron/trigger-emails", isAuthenticated, async (req, res) => {
+    try {
+      const { date } = req.body;
+      const result = await cronService.triggerPremiumEmails(date);
+      
+      res.json({
+        message: "Premium email distribution triggered successfully",
+        ...result
+      });
+    } catch (error) {
+      console.error("Error triggering premium emails:", error);
+      res.status(500).json({ message: "Failed to trigger premium emails" });
+    }
+  });
+
+  // =============================================================================
+  // TEST ENDPOINTS (Remove in production)
+  // =============================================================================
+
+  // Test horoscope generation (no auth required for testing)
+  app.post("/api/test/generate-horoscopes", async (req, res) => {
+    try {
+      const { date } = req.body;
+      const targetDate = date || new Date().toISOString().split('T')[0];
+      
+      const result = await horoscopeService.generateDailyHoroscopes(targetDate);
+      
+      res.json({
+        message: "Horoscope generation test completed",
+        date: targetDate,
+        ...result
+      });
+    } catch (error) {
+      console.error("Error in test horoscope generation:", error);
+      res.status(500).json({ message: "Failed to generate test horoscopes" });
+    }
+  });
+
+  // Test premium email distribution (no auth required for testing)
+  app.post("/api/test/send-premium-emails", async (req, res) => {
+    try {
+      const { date } = req.body;
+      const targetDate = date || new Date().toISOString().split('T')[0];
+      
+      const result = await premiumEmailService.sendDailyHoroscopesToPremiumUsers(targetDate);
+      
+      res.json({
+        message: "Premium email test completed",
+        date: targetDate,
+        ...result
+      });
+    } catch (error) {
+      console.error("Error in test premium email distribution:", error);
+      res.status(500).json({ message: "Failed to send test premium emails" });
+    }
+  });
+
+  // Test production database connection (no auth required for testing)
+  app.get("/api/test/production-users", async (req, res) => {
+    try {
+      const premiumUsers = await productionDbService.getPremiumUsers();
+      const sunCharts = await productionDbService.getUserSunChartData();
+      
+      res.json({
+        message: "Production database test completed",
+        premiumUsers: premiumUsers.length,
+        usersWithSunCharts: sunCharts.length,
+        sampleUsers: premiumUsers.slice(0, 3).map(u => ({
+          id: u.id,
+          email: u.email.substring(0, 3) + "***", // Obfuscate email for privacy
+          zodiacSign: u.zodiacSign,
+          isPremium: u.isPremium
+        }))
+      });
+    } catch (error) {
+      console.error("Error in production database test:", error);
+      res.status(500).json({ message: "Failed to test production database" });
     }
   });
 
