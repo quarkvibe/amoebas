@@ -270,5 +270,5 @@ export class QueueService {
 
 export const queueService = new QueueService();
 
-// Auto-start queue processing
-queueService.startProcessing().catch(console.error);
+// Auto-start queue processing - temporarily disabled for microservice deployment
+// queueService.startProcessing().catch(console.error);
