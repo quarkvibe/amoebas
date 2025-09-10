@@ -133,11 +133,8 @@ export const systemConfigurations = pgTable("system_configurations", {
 export const zodiacSigns = pgTable("zodiac_signs", {
   id: integer("id").primaryKey(), // 1-12 for Aries to Pisces
   name: varchar("name").notNull().unique(), // 'aries', 'taurus', etc.
-  symbol: varchar("symbol").notNull(), // '♈', '♉', etc.
-  element: varchar("element").notNull(), // 'fire', 'earth', 'air', 'water'
-  quality: varchar("quality").notNull(), // 'cardinal', 'fixed', 'mutable'
-  dateRange: varchar("date_range").notNull(), // 'Mar 21 - Apr 19'
-  traits: jsonb("traits"), // personality traits, compatibility info
+  // Simplified to core fields that exist in production database
+  // Removed: symbol, element, quality, dateRange, traits
 });
 
 // Daily horoscopes for each zodiac sign
@@ -146,12 +143,8 @@ export const horoscopes = pgTable("horoscopes", {
   zodiacSignId: integer("zodiac_sign_id").references(() => zodiacSigns.id).notNull(),
   date: date("date").notNull(),
   content: text("content").notNull(), // generated horoscope text
-  mood: varchar("mood"), // 'positive', 'neutral', 'challenging'
-  luckNumber: integer("luck_number"),
-  luckyColor: varchar("lucky_color"),
-  planetaryInfluence: jsonb("planetary_influence"), // relevant planetary data used
-  generatedAt: timestamp("generated_at").defaultNow(),
-  generationJobId: uuid("generation_job_id").references(() => queueJobs.id),
+  // Temporarily removed optional fields that don't exist in production:
+  // mood, luckNumber, luckyColor, planetaryInfluence, generatedAt, generationJobId
 }, (table) => [
   index("idx_horoscopes_date_sign").on(table.date, table.zodiacSignId),
 ]);
@@ -250,10 +243,6 @@ export const horoscopesRelations = relations(horoscopes, ({ one }) => ({
     fields: [horoscopes.zodiacSignId],
     references: [zodiacSigns.id],
   }),
-  generationJob: one(queueJobs, {
-    fields: [horoscopes.generationJobId],
-    references: [queueJobs.id],
-  }),
 }));
 
 export const userSunChartsRelations = relations(userSunCharts, ({ one }) => ({
@@ -319,7 +308,6 @@ export const insertZodiacSignSchema = createInsertSchema(zodiacSigns);
 
 export const insertHoroscopeSchema = createInsertSchema(horoscopes).omit({
   id: true,
-  generatedAt: true,
 });
 
 export const insertUserSunChartSchema = createInsertSchema(userSunCharts).omit({

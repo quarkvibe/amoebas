@@ -17,6 +17,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
 
+  // Production database connection test (simple endpoint)
+  app.get("/api/test/production-db", async (req, res) => {
+    try {
+      const result = await productionDbService.testConnection();
+      res.json({
+        message: "Production database connection successful",
+        timestamp: new Date().toISOString(),
+        database: result.database,
+        host: result.host,
+        status: "connected"
+      });
+    } catch (error: any) {
+      console.error("Production database connection failed:", error);
+      res.status(500).json({ 
+        message: "Failed to connect to production database",
+        error: error.message,
+        timestamp: new Date().toISOString(),
+        status: "error"
+      });
+    }
+  });
+
+  // Check horoscope table schema in production
+  app.get("/api/test/horoscope-schema", async (req, res) => {
+    try {
+      const schema = await productionDbService.getHoroscopeColumns();
+      res.json({
+        message: "Horoscope table schema from production database",
+        columns: schema,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error("Failed to get horoscope schema:", error);
+      res.status(500).json({ 
+        message: "Failed to get schema",
+        error: error.message
+      });
+    }
+  });
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
@@ -63,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/horoscopes/today", async (req, res) => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const horoscopes = await horoscopeService.getDailyHoroscopes(today);
+      const horoscopes = await horoscopeService.getAllHoroscopesForDate(today);
       
       res.json({
         date: today,
@@ -81,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sign } = req.params;
       const today = new Date().toISOString().split('T')[0];
       
-      const horoscope = await horoscopeService.getHoroscopeForSign(sign.toLowerCase(), today);
+      const horoscope = await horoscopeService.getTodaysHoroscope(sign.toLowerCase());
       
       if (!horoscope) {
         return res.status(404).json({ message: "Horoscope not found for this sign" });

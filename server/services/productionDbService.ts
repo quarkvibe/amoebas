@@ -41,6 +41,41 @@ export class ProductionDbService {
   }
 
   /**
+   * Test the production database connection
+   */
+  async testConnection(): Promise<{ database: string; host: string; user: string }> {
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(`
+        SELECT current_database() as database, 
+               current_user as user,
+               inet_server_addr() as host
+      `);
+      return result.rows[0];
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Get the horoscope table columns to understand the schema
+   */
+  async getHoroscopeColumns(): Promise<any[]> {
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(`
+        SELECT column_name, data_type, is_nullable, column_default
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'horoscopes'
+        ORDER BY ordinal_position;
+      `);
+      return result.rows;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Get all tables in the production database to understand the schema
    */
   async getProductionSchema(): Promise<any[]> {
