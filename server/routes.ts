@@ -6,6 +6,8 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { emailService } from "./services/emailService";
 import { aiAgent } from "./services/aiAgent";
 import { queueService } from "./services/queueService";
+import { horoscopeService } from "./services/horoscopeService";
+import { horoscopeQueueService } from "./services/horoscopeQueueService";
 import { insertCampaignSchema, insertEmailConfigurationSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -326,6 +328,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error sending test email:", error);
       res.status(500).json({ message: "Failed to send test email" });
+    }
+  });
+
+  // =============================================================================
+  // PUBLIC HOROSCOPE API ENDPOINTS (No authentication required for free users)
+  // =============================================================================
+
+  // Get today's horoscope for a specific zodiac sign
+  app.get("/api/horoscope/:sign", async (req, res) => {
+    try {
+      const { sign } = req.params;
+      const horoscope = await horoscopeService.getTodaysHoroscope(sign.toLowerCase());
+      
+      if (!horoscope) {
+        return res.status(404).json({ 
+          message: `No horoscope found for ${sign} today. Horoscopes may still be generating.` 
+        });
+      }
+
+      res.json({
+        sign: sign.toLowerCase(),
+        date: horoscope.date,
+        content: horoscope.content,
+        mood: horoscope.mood,
+        luckNumber: horoscope.luckNumber,
+        luckyColor: horoscope.luckyColor,
+        generatedAt: horoscope.generatedAt
+      });
+    } catch (error) {
+      console.error(`Error fetching horoscope for ${req.params.sign}:`, error);
+      res.status(500).json({ message: "Failed to fetch horoscope" });
+    }
+  });
+
+  // Get today's horoscopes for all signs
+  app.get("/api/horoscope", async (req, res) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const horoscopes = await storage.getAllHoroscopesForDate(today);
+      
+      // Include zodiac sign information with each horoscope
+      const zodiacSigns = await storage.getAllZodiacSigns();
+      const signMap = new Map(zodiacSigns.map(s => [s.id, s]));
+      
+      const enrichedHoroscopes = horoscopes.map(h => ({
+        sign: signMap.get(h.zodiacSignId)?.name || 'unknown',
+        symbol: signMap.get(h.zodiacSignId)?.symbol || '?',
+        element: signMap.get(h.zodiacSignId)?.element || 'unknown',
+        date: h.date,
+        content: h.content,
+        mood: h.mood,
+        luckNumber: h.luckNumber,
+        luckyColor: h.luckyColor,
+        generatedAt: h.generatedAt
+      }));
+
+      res.json({
+        date: today,
+        horoscopes: enrichedHoroscopes,
+        total: enrichedHoroscopes.length
+      });
+    } catch (error) {
+      console.error("Error fetching all horoscopes:", error);
+      res.status(500).json({ message: "Failed to fetch horoscopes" });
+    }
+  });
+
+  // Get zodiac sign information
+  app.get("/api/zodiac", async (req, res) => {
+    try {
+      const signs = await storage.getAllZodiacSigns();
+      res.json(signs);
+    } catch (error) {
+      console.error("Error fetching zodiac signs:", error);
+      res.status(500).json({ message: "Failed to fetch zodiac signs" });
+    }
+  });
+
+  // Get specific zodiac sign information
+  app.get("/api/zodiac/:sign", async (req, res) => {
+    try {
+      const { sign } = req.params;
+      const zodiacSign = await storage.getZodiacSignByName(sign.toLowerCase());
+      
+      if (!zodiacSign) {
+        return res.status(404).json({ message: `Zodiac sign '${sign}' not found` });
+      }
+
+      res.json(zodiacSign);
+    } catch (error) {
+      console.error(`Error fetching zodiac sign ${req.params.sign}:`, error);
+      res.status(500).json({ message: "Failed to fetch zodiac sign" });
+    }
+  });
+
+  // =============================================================================
+  // ADMIN HOROSCOPE MANAGEMENT ENDPOINTS (Authentication required)
+  // =============================================================================
+
+  // Get horoscope generation status and metrics
+  app.get("/api/admin/horoscope/status", isAuthenticated, async (req, res) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const horoscopes = await storage.getAllHoroscopesForDate(today);
+      const stats = await horoscopeQueueService.getGenerationStats();
+      
+      res.json({
+        date: today,
+        generatedToday: horoscopes.length,
+        totalSigns: 12,
+        isComplete: horoscopes.length === 12,
+        generationStats: stats,
+        horoscopes: horoscopes.map(h => ({
+          zodiacSignId: h.zodiacSignId,
+          mood: h.mood,
+          generatedAt: h.generatedAt
+        }))
+      });
+    } catch (error) {
+      console.error("Error fetching horoscope status:", error);
+      res.status(500).json({ message: "Failed to fetch horoscope status" });
+    }
+  });
+
+  // Manually trigger horoscope generation for today
+  app.post("/api/admin/horoscope/generate", isAuthenticated, async (req, res) => {
+    try {
+      const { date } = req.body;
+      const targetDate = date || new Date().toISOString().split('T')[0];
+      
+      await horoscopeQueueService.scheduleDailyHoroscopeGeneration(targetDate, 20); // High priority
+      
+      res.json({ 
+        message: `Horoscope generation scheduled for ${targetDate}`,
+        date: targetDate
+      });
+    } catch (error) {
+      console.error("Error scheduling horoscope generation:", error);
+      res.status(500).json({ message: "Failed to schedule horoscope generation" });
+    }
+  });
+
+  // Initialize daily horoscope generation (for testing/setup)
+  app.post("/api/admin/horoscope/initialize", isAuthenticated, async (req, res) => {
+    try {
+      await horoscopeQueueService.scheduleRecurringDailyGeneration();
+      
+      res.json({ 
+        message: "Daily horoscope generation initialized successfully"
+      });
+    } catch (error) {
+      console.error("Error initializing horoscope generation:", error);
+      res.status(500).json({ message: "Failed to initialize horoscope generation" });
+    }
+  });
+
+  // Get premium user sun chart data (placeholder for when production DB is connected)
+  app.get("/api/admin/users/:userId/sunchart", isAuthenticated, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const sunChart = await storage.getUserSunChart(userId);
+      
+      if (!sunChart) {
+        return res.status(404).json({ message: "Sun chart not found for user" });
+      }
+
+      res.json(sunChart);
+    } catch (error) {
+      console.error("Error fetching user sun chart:", error);
+      res.status(500).json({ message: "Failed to fetch sun chart" });
     }
   });
 
