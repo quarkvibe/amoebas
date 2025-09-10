@@ -827,7 +827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // This would need a new storage method for date range queries
         // For now, we'll get individual days
-        const horoscopesByDate = {};
+        const horoscopesByDate: Record<string, any[]> = {};
         const currentDate = new Date(startDate);
         
         while (currentDate <= end) {

@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { storage } from "../storage";
+import { integrationService } from "./integrationService";
 import { 
   ZodiacSign, 
   AstrologyDataCache, 
@@ -303,6 +304,19 @@ Format as JSON:
       });
 
       console.log(`Successfully generated ${completedCount}/12 horoscopes for ${date}`);
+      
+      // Send webhook notification for daily horoscope completion
+      try {
+        await integrationService.sendWebhook('horoscopes.daily_complete', {
+          date,
+          completedCount,
+          totalSigns: 12,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error('Failed to send daily completion webhook:', error);
+        // Don't fail the generation if webhook fails
+      }
 
     } catch (error) {
       console.error('Error generating daily horoscopes:', error);
