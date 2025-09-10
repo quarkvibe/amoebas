@@ -324,8 +324,10 @@ Wishing you a wonderful day ahead!
 
       await mailService.send({
         to,
-        from: 'horoscopes@amoeba.services', // System email address
-        fromName: 'Amoeba Horoscope Service',
+        from: {
+          email: 'horoscopes@amoeba.services',
+          name: 'Amoeba Horoscope Service'
+        },
         subject,
         html,
         text,

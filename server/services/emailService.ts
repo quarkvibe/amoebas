@@ -55,7 +55,7 @@ export class EmailService {
       const emailParams = {
         ...params,
         from: config.fromEmail,
-        fromName: config.fromName || params.fromName,
+        fromName: config.fromName || params.fromName || '',
       };
 
       switch (config.provider) {
