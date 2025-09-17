@@ -243,7 +243,8 @@ export class AstronomyService {
     const positions: PlanetPosition[] = [];
     
     try {
-      const observer = new Astronomy.Observer(0, 0, 0); // Geocentric observer
+      // Geocentric observer (Earth center) for astrological calculations
+      const observer = new Astronomy.Observer(0, 0, 0);
       const time = new Astronomy.AstroTime(date);
       
       const bodies = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
@@ -367,6 +368,58 @@ export class AstronomyService {
       zodiacDegree: jupiterZodiac.degree
     });
     
+    // Saturn
+    const saturnLongitude = this.calculatePlanetLongitude('saturn', T);
+    const saturnZodiac = this.longitudeToZodiac(saturnLongitude);
+    positions.push({
+      name: 'Saturn',
+      longitude: saturnLongitude,
+      latitude: 0,
+      distance: 9.54,
+      speed: 0.033,
+      zodiacSign: saturnZodiac.sign,
+      zodiacDegree: saturnZodiac.degree
+    });
+    
+    // Uranus
+    const uranusLongitude = this.calculatePlanetLongitude('uranus', T);
+    const uranusZodiac = this.longitudeToZodiac(uranusLongitude);
+    positions.push({
+      name: 'Uranus',
+      longitude: uranusLongitude,
+      latitude: 0,
+      distance: 19.19,
+      speed: 0.012,
+      zodiacSign: uranusZodiac.sign,
+      zodiacDegree: uranusZodiac.degree
+    });
+    
+    // Neptune
+    const neptuneLongitude = this.calculatePlanetLongitude('neptune', T);
+    const neptuneZodiac = this.longitudeToZodiac(neptuneLongitude);
+    positions.push({
+      name: 'Neptune',
+      longitude: neptuneLongitude,
+      latitude: 0,
+      distance: 30.07,
+      speed: 0.006,
+      zodiacSign: neptuneZodiac.sign,
+      zodiacDegree: neptuneZodiac.degree
+    });
+    
+    // Pluto
+    const plutoLongitude = this.calculatePlanetLongitude('pluto', T);
+    const plutoZodiac = this.longitudeToZodiac(plutoLongitude);
+    positions.push({
+      name: 'Pluto',
+      longitude: plutoLongitude,
+      latitude: 0,
+      distance: 39.48,
+      speed: 0.004,
+      zodiacSign: plutoZodiac.sign,
+      zodiacDegree: plutoZodiac.degree
+    });
+    
     return positions;
   }
 
@@ -458,15 +511,16 @@ export class AstronomyService {
         const moonResult = sweph.calc_ut(julianDay, CELESTIAL_BODIES.MOON, sweph.SEFLG_SWIEPH);
         
         if (!sunResult.error && !moonResult.error) {
-          // Calculate phase angle
+          // Calculate phase angle (elongation of Moon from Sun)
           let phaseAngle = moonResult.longitude - sunResult.longitude;
           if (phaseAngle < 0) phaseAngle += 360;
-          if (phaseAngle > 180) phaseAngle = 360 - phaseAngle;
+          // Keep phase angle in 0-360° range for proper phase classification
           
-          // Calculate illumination percentage
-          const illumination = (1 + Math.cos(phaseAngle * Math.PI / 180)) / 2;
+          // Calculate illumination percentage based on phase angle
+          // For astronomical elongation: 0° = New (dark), 180° = Full (bright)
+          const illumination = (1 - Math.cos(phaseAngle * Math.PI / 180)) / 2;
           
-          // Determine phase name
+          // Determine phase name based on elongation angle
           let currentPhase: LunarPhase['currentPhase'] = 'New';
           if (phaseAngle < 45) currentPhase = 'New';
           else if (phaseAngle < 90) currentPhase = 'Waxing Crescent';
