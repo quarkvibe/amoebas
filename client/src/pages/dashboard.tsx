@@ -13,6 +13,7 @@ import HoroscopeGeneration from "@/components/dashboard/HoroscopeGeneration";
 import LogsViewer from "@/components/dashboard/LogsViewer";
 import FileManagement from "@/components/dashboard/FileManagement";
 import HealthMonitor from "@/components/dashboard/HealthMonitor";
+import ContentConfiguration from "@/components/dashboard/ContentConfiguration";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function Dashboard() {
@@ -47,6 +48,8 @@ export default function Dashboard() {
         );
       case "generation":
         return <HoroscopeGeneration />;
+      case "content-config":
+        return <ContentConfiguration />;
       case "astronomy":
         return (
           <div className="space-y-6">
@@ -88,15 +91,15 @@ export default function Dashboard() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <i className="fas fa-cog text-primary"></i>
-              System Configuration
+              System Settings
             </h2>
             <p className="text-muted-foreground">
               Configure system settings, API keys, and service parameters.
             </p>
-            {/* Future configuration components will go here */}
+            {/* Future system configuration components will go here */}
             <div className="text-center py-12 text-muted-foreground">
               <i className="fas fa-cog text-4xl mb-4"></i>
-              <p>Configuration interface coming soon...</p>
+              <p>System settings interface coming soon...</p>
             </div>
           </div>
         );

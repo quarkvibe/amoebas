@@ -3,12 +3,13 @@ import { useState } from "react";
 const navigation = [
   { id: 'overview', name: 'Overview', icon: 'fas fa-chart-line' },
   { id: 'generation', name: 'Horoscope Generation', icon: 'fas fa-star' },
+  { id: 'content-config', name: 'Content Configuration', icon: 'fas fa-cogs' },
   { id: 'astronomy', name: 'Astronomy Data', icon: 'fas fa-satellite' },
   { id: 'queue', name: 'Queue Monitor', icon: 'fas fa-clock' },
   { id: 'logs', name: 'System Logs', icon: 'fas fa-file-alt' },
   { id: 'files', name: 'File Management', icon: 'fas fa-folder' },
   { id: 'health', name: 'Health Monitor', icon: 'fas fa-heartbeat' },
-  { id: 'configuration', name: 'Configuration', icon: 'fas fa-cog' },
+  { id: 'configuration', name: 'System Settings', icon: 'fas fa-cog' },
 ];
 
 interface SidebarProps {
