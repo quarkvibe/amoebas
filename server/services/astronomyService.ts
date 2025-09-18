@@ -23,14 +23,13 @@ async function initializeAstronomyLibraries() {
   }
 
   try {
-    // Try to import Swiss Ephemeris if available using dynamic import
-    const swephModule = await import('sweph');
-    sweph = swephModule.default || swephModule;
-    const ephemerisPath = path.join(process.cwd(), 'ephemeris_data');
-    sweph.set_ephe_path(ephemerisPath);
-    console.log('✅ Swiss Ephemeris initialized successfully');
-    console.log('📁 Ephemeris path:', ephemerisPath);
-    console.log('📊 Swiss Ephemeris version:', sweph.version());
+    // Try to import Swiss Ephemeris WebAssembly version if available
+    const swephModule = await import('swisseph-wasm');
+    const SwissEph = swephModule.default || swephModule.SwissEph || swephModule;
+    sweph = new SwissEph();
+    await sweph.initSwissEph();
+    console.log('✅ Swiss Ephemeris (WebAssembly) initialized successfully');
+    console.log('📊 Swiss Ephemeris WebAssembly version available');
   } catch (error) {
     console.warn('⚠️  Swiss Ephemeris not available:', error instanceof Error ? error.message : String(error));
   }
