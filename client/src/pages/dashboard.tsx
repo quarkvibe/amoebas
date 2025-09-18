@@ -14,6 +14,9 @@ import LogsViewer from "@/components/dashboard/LogsViewer";
 import FileManagement from "@/components/dashboard/FileManagement";
 import HealthMonitor from "@/components/dashboard/HealthMonitor";
 import ContentConfiguration from "@/components/dashboard/ContentConfiguration";
+import DataSourceManager from "@/components/dashboard/DataSourceManager";
+import OutputConfiguration from "@/components/dashboard/OutputConfiguration";
+import ScheduleManager from "@/components/dashboard/ScheduleManager";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function Dashboard() {
@@ -50,6 +53,12 @@ export default function Dashboard() {
         return <HoroscopeGeneration />;
       case "content-config":
         return <ContentConfiguration />;
+      case "data-sources":
+        return <DataSourceManager />;
+      case "output-config":
+        return <OutputConfiguration />;
+      case "schedule":
+        return <ScheduleManager />;
       case "astronomy":
         return (
           <div className="space-y-6">
@@ -195,10 +204,10 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-foreground">
-                Amoeba Horoscope Dashboard
+                Amoeba AI Content Platform
               </h1>
               <p className="text-muted-foreground mt-1">
-                Intelligent horoscope generation and management system
+                Universal AI content generation and dissemination platform
               </p>
             </div>
           </div>

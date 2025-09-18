@@ -2,13 +2,13 @@ import { useState } from "react";
 
 const navigation = [
   { id: 'overview', name: 'Overview', icon: 'fas fa-chart-line' },
-  { id: 'generation', name: 'Horoscope Generation', icon: 'fas fa-star' },
-  { id: 'content-config', name: 'Content Configuration', icon: 'fas fa-cogs' },
-  { id: 'astronomy', name: 'Astronomy Data', icon: 'fas fa-satellite' },
+  { id: 'generation', name: 'AI Content Generation', icon: 'fas fa-robot' },
+  { id: 'content-config', name: 'Content Templates', icon: 'fas fa-file-text' },
+  { id: 'data-sources', name: 'Data Sources', icon: 'fas fa-database' },
+  { id: 'output-config', name: 'Output Channels', icon: 'fas fa-share-alt' },
+  { id: 'schedule', name: 'Schedule Manager', icon: 'fas fa-calendar-alt' },
   { id: 'queue', name: 'Queue Monitor', icon: 'fas fa-clock' },
   { id: 'logs', name: 'System Logs', icon: 'fas fa-file-alt' },
-  { id: 'files', name: 'File Management', icon: 'fas fa-folder' },
-  { id: 'health', name: 'Health Monitor', icon: 'fas fa-heartbeat' },
   { id: 'configuration', name: 'System Settings', icon: 'fas fa-cog' },
 ];
 
@@ -34,7 +34,7 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
           </div>
           <div>
             <h1 className="text-lg font-semibold text-foreground">Amoeba</h1>
-            <p className="text-xs text-muted-foreground">Horoscope Service</p>
+            <p className="text-xs text-muted-foreground">AI Content Platform</p>
           </div>
         </div>
 
