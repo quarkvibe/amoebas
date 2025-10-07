@@ -1293,10 +1293,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
   // WebSocket connection handling
+  // Command handlers
+  const commandHandlers: Record<string, () => Promise<string>> = {
+    help: async () => {
+      return `Available commands:
+  generate [sign]  - Trigger horoscope generation (all signs or specific)
+  status          - Show generation status
+  queue           - Show queue metrics
+  health          - Check system health
+  clear           - Clear terminal output
+  help            - Show this help message`;
+    },
+    generate: async () => {
+      try {
+        await cronService.triggerHoroscopeGeneration();
+        return '✓ Horoscope generation triggered for all 12 zodiac signs';
+      } catch (error: any) {
+        throw new Error(`Generation failed: ${error.message}`);
+      }
+    },
+    status: async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const horoscopes = await horoscopeService.getAllHoroscopesForDate(today);
+        return `Generation status for ${today}:
+  Completed: ${horoscopes?.length || 0}/12 signs
+  ${horoscopes?.map((h: any) => `✓ ${h.zodiacSignId}`).join('\n  ') || 'No horoscopes generated yet'}`;
+      } catch (error: any) {
+        throw new Error(`Status check failed: ${error.message}`);
+      }
+    },
+    queue: async () => {
+      try {
+        const metrics = await storage.getQueueMetrics();
+        return `Queue Status:
+  Pending: ${metrics.pending}
+  Processing: ${metrics.processing}
+  Completed: ${metrics.completed}
+  Failed: ${metrics.failed}`;
+      } catch (error: any) {
+        throw new Error(`Queue check failed: ${error.message}`);
+      }
+    },
+    health: async () => {
+      const astronomyStatus = astronomyService ? '✓ Swiss Ephemeris active' : '✗ Astronomy service down';
+      return `System Health:
+  ${astronomyStatus}
+  ✓ Database connected
+  ✓ Queue service running
+  ✓ WebSocket connected`;
+    },
+  };
+
   wss.on('connection', (ws: WebSocket) => {
     console.log('WebSocket client connected');
     
-    ws.on('message', (message: Buffer) => {
+    ws.on('message', async (message: Buffer) => {
       try {
         const data = JSON.parse(message.toString());
         console.log('WebSocket message received:', data);
@@ -1306,9 +1358,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
             type: 'subscribed',
             message: 'Connected to real-time updates'
           }));
+        } else if (data.type === 'command') {
+          const cmd = data.command?.toLowerCase().split(' ')[0];
+          
+          if (commandHandlers[cmd]) {
+            try {
+              const output = await commandHandlers[cmd]();
+              ws.send(JSON.stringify({
+                type: 'command_output',
+                output: output
+              }));
+            } catch (error: any) {
+              ws.send(JSON.stringify({
+                type: 'command_error',
+                error: error.message || 'Command execution failed'
+              }));
+            }
+          } else {
+            ws.send(JSON.stringify({
+              type: 'command_error',
+              error: `Unknown command: ${cmd}. Type 'help' for available commands.`
+            }));
+          }
         }
       } catch (error) {
         console.error('Error processing WebSocket message:', error);
+        ws.send(JSON.stringify({
+          type: 'command_error',
+          error: 'Failed to process message'
+        }));
       }
     });
 

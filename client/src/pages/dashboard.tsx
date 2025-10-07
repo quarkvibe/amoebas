@@ -18,6 +18,7 @@ import DataSourceManager from "@/components/dashboard/DataSourceManager";
 import OutputConfiguration from "@/components/dashboard/OutputConfiguration";
 import ScheduleManager from "@/components/dashboard/ScheduleManager";
 import ApiSettings from "@/components/dashboard/ApiSettings";
+import Terminal from "@/components/dashboard/Terminal";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
 export default function Dashboard() {
@@ -33,6 +34,9 @@ export default function Dashboard() {
           <div className="space-y-6">
             {/* Metrics Grid */}
             <MetricsGrid />
+            
+            {/* Terminal Console */}
+            <Terminal />
             
             {/* Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
