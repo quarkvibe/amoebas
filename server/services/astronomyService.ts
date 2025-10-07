@@ -232,21 +232,29 @@ export class AstronomyService {
       try {
         const result = sweph.calc_ut(julianDay, planetId, sweph.SEFLG_SWIEPH | sweph.SEFLG_SPEED);
         
-        if (!result.error) {
+        if (!result.error && result.longitude !== undefined && result.longitude !== null) {
           const zodiac = this.longitudeToZodiac(result.longitude);
           positions.push({
             name: PLANET_NAMES[planetId] || `Planet ${planetId}`,
             longitude: result.longitude,
-            latitude: result.latitude,
-            distance: result.distance,
-            speed: result.longitudeSpeed,
+            latitude: result.latitude || 0,
+            distance: result.distance || 0,
+            speed: result.longitudeSpeed || result.speed?.[0] || 0,
             zodiacSign: zodiac.sign,
             zodiacDegree: zodiac.degree
           });
+        } else {
+          console.warn(`Swiss Ephemeris returned invalid data for ${PLANET_NAMES[planetId]}, using fallback`);
         }
       } catch (error) {
         console.warn(`Failed to calculate position for ${PLANET_NAMES[planetId]}:`, error instanceof Error ? error.message : String(error));
       }
+    }
+    
+    // If we got less than 7 planets, fall back to Astronomy Engine
+    if (positions.length < 7) {
+      console.warn(`Swiss Ephemeris only calculated ${positions.length} planets, falling back to Astronomy Engine`);
+      return this.calculateWithAstronomyEngine(date);
     }
     
     return positions;

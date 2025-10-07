@@ -186,14 +186,14 @@ Format as JSON:
 
     // Check for planets in the same element
     planets.forEach(planet => {
-      if (this.getElementForSign(planet.sign) === signDetails.element) {
+      if (planet.sign && this.getElementForSign(planet.sign) === signDetails.element) {
         influences.push(`${planet.planet} in ${planet.sign} harmonizes with your ${signDetails.element} nature`);
       }
     });
 
     // Check for planets in the zodiac sign itself
     planets.forEach(planet => {
-      if (planet.sign.toLowerCase() === zodiacSign.name.toLowerCase()) {
+      if (planet.sign && planet.sign.toLowerCase() === zodiacSign.name.toLowerCase()) {
         influences.push(`${planet.planet} is currently activating your sign, amplifying your natural ${zodiacSign.name} energy`);
       }
     });
