@@ -361,7 +361,7 @@ Format as JSON:
   /**
    * Generate daily horoscopes for all 12 zodiac signs
    */
-  async generateDailyHoroscopes(date: string): Promise<void> {
+  async generateDailyHoroscopes(date: string): Promise<{ generated: number; skipped: number; failed: number }> {
     try {
       // Create generation tracking record
       const generation = await storage.createHoroscopeGeneration({
@@ -384,6 +384,7 @@ Format as JSON:
       // Get all zodiac signs
       const zodiacSigns = await storage.getAllZodiacSigns();
       let completedCount = 0;
+      let failedCount = 0;
 
       // Generate horoscope for each sign
       for (let i = 0; i < zodiacSigns.length; i++) {
@@ -414,6 +415,7 @@ Format as JSON:
 
         } catch (error) {
           console.error(`Failed to generate horoscope for ${sign.name}:`, error);
+          failedCount++;
         }
       }
 
@@ -437,6 +439,12 @@ Format as JSON:
         console.error('Failed to send daily completion webhook:', error);
         // Don't fail the generation if webhook fails
       }
+
+      return {
+        generated: completedCount,
+        skipped: 0,
+        failed: failedCount
+      };
 
     } catch (error) {
       console.error('Error generating daily horoscopes:', error);

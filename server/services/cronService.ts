@@ -8,11 +8,11 @@ export class CronService {
   /**
    * Start the automated daily horoscope generation and email distribution
    */
-  start(): void {
+  async start(): Promise<void> {
     console.log('🌟 Starting Amoeba Horoscope Cron Service...');
 
     // Generate daily horoscopes at 12:00 AM UTC every day
-    this.scheduleDailyHoroscopeGeneration();
+    await this.scheduleDailyHoroscopeGeneration();
     
     // Send premium emails at 6:00 AM UTC every day
     this.schedulePremiumEmailDistribution();
@@ -40,9 +40,23 @@ export class CronService {
   /**
    * Schedule daily horoscope generation at midnight UTC
    */
-  private scheduleDailyHoroscopeGeneration(): void {
-    // Calculate time until next midnight UTC
+  private async scheduleDailyHoroscopeGeneration(): Promise<void> {
     const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    
+    // Check if we should run immediately (startup after midnight with no horoscopes)
+    const todayMidnight = new Date();
+    todayMidnight.setUTCHours(0, 0, 0, 0);
+    
+    if (now.getTime() > todayMidnight.getTime()) {
+      // We're past midnight - check if horoscopes exist for today
+      console.log(`⏰ Server started after midnight UTC - checking if today's horoscopes exist...`);
+      
+      // Run generation immediately (it will skip if already exists)
+      await this.generateDailyHoroscopes();
+    }
+    
+    // Calculate time until next midnight UTC
     const nextMidnight = new Date();
     nextMidnight.setUTCHours(24, 0, 0, 0); // Next midnight UTC
     
