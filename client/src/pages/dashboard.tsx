@@ -19,7 +19,7 @@ import OutputConfiguration from "@/components/dashboard/OutputConfiguration";
 import ScheduleManager from "@/components/dashboard/ScheduleManager";
 import ApiSettings from "@/components/dashboard/ApiSettings";
 import Terminal from "@/components/dashboard/Terminal";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useWebSocketContext } from "@/contexts/WebSocketContext";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -151,8 +151,10 @@ export default function Dashboard() {
   }, [isAuthenticated, isLoading, toast]);
 
   // WebSocket connection for real-time updates
-  useWebSocket({
-    onMessage: (message) => {
+  const { subscribe } = useWebSocketContext();
+  
+  useEffect(() => {
+    const unsubscribe = subscribe((message) => {
       switch (message.type) {
         case 'metrics_update':
           // Handle real-time metrics updates
@@ -168,14 +170,12 @@ export default function Dashboard() {
         default:
           console.log('Unknown WebSocket message:', message);
       }
-    },
-    onConnect: () => {
-      console.log('Connected to real-time updates');
-    },
-    onDisconnect: () => {
-      console.log('Disconnected from real-time updates');
-    },
-  });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [subscribe, toast]);
 
   if (isLoading) {
     return (

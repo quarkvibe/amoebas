@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useWebSocketContext } from "@/contexts/WebSocketContext";
 
 interface LogEntry {
   timestamp: string;
@@ -21,8 +21,10 @@ export default function Terminal() {
   const logsContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { isConnected, sendMessage } = useWebSocket({
-    onMessage: (message) => {
+  const { isConnected, sendMessage, subscribe } = useWebSocketContext();
+
+  useEffect(() => {
+    const unsubscribe = subscribe((message) => {
       if (message.type === 'log') {
         const newLog: LogEntry = {
           timestamp: new Date().toISOString(),
@@ -47,8 +49,12 @@ export default function Terminal() {
         setLogs((prev) => [...prev.slice(-99), errorLog]);
         setIsExecuting(false);
       }
-    },
-  });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [subscribe]);
 
   useEffect(() => {
     if (isAutoScroll && logsEndRef.current) {
