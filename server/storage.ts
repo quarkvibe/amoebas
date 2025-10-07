@@ -436,7 +436,19 @@ export class DatabaseStorage implements IStorage {
 
   // Horoscope generation operations
   async createHoroscopeGeneration(generation: InsertHoroscopeGeneration): Promise<HoroscopeGeneration> {
-    const [newGeneration] = await db.insert(horoscopeGenerations).values(generation).returning();
+    const [newGeneration] = await db.insert(horoscopeGenerations)
+      .values(generation)
+      .onConflictDoUpdate({
+        target: horoscopeGenerations.date,
+        set: {
+          status: generation.status,
+          totalSigns: generation.totalSigns,
+          completedSigns: generation.completedSigns,
+          startedAt: generation.startedAt,
+          completedAt: null,
+        }
+      })
+      .returning();
     return newGeneration;
   }
 
@@ -448,6 +460,26 @@ export class DatabaseStorage implements IStorage {
 
   // Daily horoscope operations
   async createHoroscope(horoscope: InsertHoroscope): Promise<Horoscope> {
+    // First, try to find existing horoscope for this sign and date
+    const [existing] = await db.select()
+      .from(horoscopes)
+      .where(
+        sql`${horoscopes.zodiacSignId} = ${horoscope.zodiacSignId} AND ${horoscopes.date} = ${horoscope.date}`
+      );
+
+    if (existing) {
+      // Update existing horoscope
+      const [updated] = await db.update(horoscopes)
+        .set({
+          content: horoscope.content,
+          technicalDetails: horoscope.technicalDetails,
+        })
+        .where(eq(horoscopes.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    // Insert new horoscope
     const [newHoroscope] = await db.insert(horoscopes).values(horoscope).returning();
     return newHoroscope;
   }
