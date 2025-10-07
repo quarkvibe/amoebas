@@ -160,7 +160,7 @@ Format as JSON:
         });
 
         const rawContent = response.choices[0].message.content || '{}';
-        console.log(`🤖 GPT-5 response for ${zodiacSign.name} (attempt ${attempt}):`, rawContent.substring(0, 150));
+        // GPT-5 response received (content logging disabled for production)
         
         const result = JSON.parse(rawContent);
         

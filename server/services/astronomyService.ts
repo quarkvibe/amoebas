@@ -596,7 +596,7 @@ export class AstronomyService {
           else if (phaseAngle < 315) currentPhase = 'Last Quarter';
           else currentPhase = 'Waning Crescent';
           
-          console.log(`🌙 Swiss Ephemeris lunar phase: Sun=${sunResult.longitude.toFixed(2)}°, Moon=${moonResult.longitude.toFixed(2)}°, phaseAngle=${phaseAngle.toFixed(1)}°, illumination=${(illumination * 100).toFixed(1)}%, phase=${currentPhase}`);
+          // Lunar phase calculated successfully (detailed logging disabled for production)
           
           // Validate the result - if illumination > 90% but phase is not Full/Waxing Gibbous, use fallback
           if (illumination > 0.9 && !['Full', 'Waxing Gibbous'].includes(currentPhase)) {
@@ -645,7 +645,7 @@ export class AstronomyService {
     else if (cyclePosition < 23.93) currentPhase = 'Last Quarter';
     else currentPhase = 'Waning Crescent';
     
-    console.log(`🌙 Fallback lunar phase calc: position=${cyclePosition.toFixed(2)} days, angle=${phaseAngle.toFixed(1)}°, illumination=${(illumination * 100).toFixed(1)}%, phase=${currentPhase}`);
+    // Fallback lunar phase calculated (detailed logging disabled for production)
     
     return {
       name: currentPhase,
