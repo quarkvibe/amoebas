@@ -160,11 +160,20 @@ Format as JSON:
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 500
+        max_completion_tokens: 2000  // Increased for GPT-5's reasoning tokens
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{}');
-      return result.content || "The stars have a message for you today, but it's written in a language only the cosmos understands.";
+      const rawContent = response.choices[0].message.content || '{}';
+      console.log(`🤖 GPT-5 response for ${zodiacSign.name}:`, rawContent.substring(0, 150));
+      
+      const result = JSON.parse(rawContent);
+      
+      if (!result.content) {
+        console.error(`❌ GPT-5 returned empty content for ${zodiacSign.name}, full response:`, rawContent);
+        throw new Error('Empty horoscope content from GPT-5');
+      }
+      
+      return result.content;
       
     } catch (error) {
       console.error(`Error generating horoscope for ${zodiacSign.name}:`, error);
@@ -470,7 +479,7 @@ Generate a personalized daily horoscope (150-200 words) in JSON format:
         }
       ],
       response_format: { type: "json_object" },
-      max_completion_tokens: 500
+      max_completion_tokens: 2000  // Increased for GPT-5's reasoning tokens
     });
 
     return JSON.parse(response.choices[0].message.content || '{}');

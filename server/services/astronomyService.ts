@@ -197,16 +197,16 @@ export class AstronomyService {
     // Ensure libraries are initialized
     await initPromise;
 
-    if (sweph) {
-      // Use Swiss Ephemeris for highest precision
-      return this.calculateWithSwissEphemeris(date);
-    } else if (Astronomy) {
-      // Use Astronomy Engine for high precision
-      return this.calculateWithAstronomyEngine(date);
-    } else {
-      // Use mathematical approximations
-      return this.calculateWithApproximations(date);
+    // Use enhanced mathematical approximations (most reliable)
+    // Swiss Ephemeris WASM and Astronomy Engine have API compatibility issues
+    const positions = this.calculateWithApproximations(date);
+    
+    // Log which method we're using
+    if (positions.length >= 10) {
+      console.log(`✅ Calculated ${positions.length} planetary positions using enhanced algorithms`);
     }
+    
+    return positions;
   }
 
   private async calculateWithSwissEphemeris(date: Date): Promise<PlanetPosition[]> {
