@@ -160,7 +160,7 @@ Format as JSON:
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 2000  // Increased for GPT-5's reasoning tokens
+        max_completion_tokens: 5000  // Generous limit for GPT-5's reasoning tokens
       });
 
       const rawContent = response.choices[0].message.content || '{}';
