@@ -24,7 +24,7 @@ async function initializeAstronomyLibraries() {
 
   try {
     // Try to import Swiss Ephemeris WebAssembly version if available
-    const swephModule = await import('swisseph-wasm');
+    const swephModule: any = await import('swisseph-wasm');
     const SwissEph = swephModule.default || swephModule.SwissEph || swephModule;
     sweph = new SwissEph();
     await sweph.initSwissEph();
