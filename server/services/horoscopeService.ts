@@ -107,19 +107,23 @@ export class HoroscopeService {
     astrologyData: AstrologyDataCache,
     date: string
   ): Promise<{ content: string; technicalDetails: string | null }> {
-    try {
-      const planetaryInfluences = this.analyzePlanetaryInfluences(zodiacSign, astrologyData);
-      
-      // Get zodiac sign details from our internal knowledge
-      const signDetails = this.getZodiacSignDetails(zodiacSign.name);
-      
-      // Simplify planetary data for the prompt
-      const planetList = (astrologyData.planetaryPositions as any[])
-        .map((p: any) => `${p.planet} in ${p.sign}`)
-        .filter((p: string) => p.includes('in'))
-        .join(', ');
-      
-      const prompt = `Generate a mystical daily horoscope for ${zodiacSign.name.toUpperCase()} for ${date}.
+    const maxRetries = 3;
+    let lastError: any = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const planetaryInfluences = this.analyzePlanetaryInfluences(zodiacSign, astrologyData);
+        
+        // Get zodiac sign details from our internal knowledge
+        const signDetails = this.getZodiacSignDetails(zodiacSign.name);
+        
+        // Simplify planetary data for the prompt
+        const planetList = (astrologyData.planetaryPositions as any[])
+          .map((p: any) => `${p.planet} in ${p.sign}`)
+          .filter((p: string) => p.includes('in'))
+          .join(', ');
+        
+        const prompt = `Generate a mystical daily horoscope for ${zodiacSign.name.toUpperCase()} for ${date}.
 
 ZODIAC: ${zodiacSign.name} (${signDetails.element} sign, ${signDetails.quality})
 MOON PHASE: ${astrologyData.moonPhase}
@@ -139,45 +143,56 @@ Format as JSON:
   "technicalDetails": "concise technical summary with degrees and aspects..."
 }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-        messages: [
-          {
-            role: "system",
-            content: "You are a professional astrologer with deep knowledge of planetary influences and zodiac characteristics. Generate accurate, personalized horoscopes based on real astrological data."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        response_format: { type: "json_object" },
-        max_completion_tokens: 5000  // Generous limit for GPT-5's reasoning tokens
-      });
+        const response = await openai.chat.completions.create({
+          model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+          messages: [
+            {
+              role: "system",
+              content: "You are a professional astrologer with deep knowledge of planetary influences and zodiac characteristics. Generate accurate, personalized horoscopes based on real astrological data."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 5000  // Generous limit for GPT-5's reasoning tokens
+        });
 
-      const rawContent = response.choices[0].message.content || '{}';
-      console.log(`🤖 GPT-5 response for ${zodiacSign.name}:`, rawContent.substring(0, 150));
-      
-      const result = JSON.parse(rawContent);
-      
-      if (!result.content) {
-        console.error(`❌ GPT-5 returned empty content for ${zodiacSign.name}, full response:`, rawContent);
-        throw new Error('Empty horoscope content from GPT-5');
+        const rawContent = response.choices[0].message.content || '{}';
+        console.log(`🤖 GPT-5 response for ${zodiacSign.name} (attempt ${attempt}):`, rawContent.substring(0, 150));
+        
+        const result = JSON.parse(rawContent);
+        
+        if (!result.content) {
+          throw new Error('Empty horoscope content from GPT-5');
+        }
+        
+        // Success! Return the result
+        return {
+          content: result.content,
+          technicalDetails: result.technicalDetails || null
+        };
+        
+      } catch (error) {
+        lastError = error;
+        console.error(`❌ Attempt ${attempt}/${maxRetries} failed for ${zodiacSign.name}:`, error instanceof Error ? error.message : String(error));
+        
+        // If not the last attempt, wait before retrying
+        if (attempt < maxRetries) {
+          const delay = 2000 * attempt; // Exponential backoff: 2s, 4s
+          console.log(`⏳ Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-      
-      // Return both content and technical details
-      return {
-        content: result.content,
-        technicalDetails: result.technicalDetails || null
-      };
-      
-    } catch (error) {
-      console.error(`Error generating horoscope for ${zodiacSign.name}:`, error);
-      return {
-        content: `The cosmic energies are aligning for ${zodiacSign.name} today, bringing opportunities for growth and positive change.`,
-        technicalDetails: null
-      };
     }
+
+    // All retries failed, return fallback
+    console.error(`❌ All ${maxRetries} attempts failed for ${zodiacSign.name}, using fallback`);
+    return {
+      content: `The cosmic energies are aligning for ${zodiacSign.name} today, bringing opportunities for growth and positive change.`,
+      technicalDetails: null
+    };
   }
 
   /**
@@ -371,7 +386,8 @@ Format as JSON:
       let completedCount = 0;
 
       // Generate horoscope for each sign
-      for (const sign of zodiacSigns) {
+      for (let i = 0; i < zodiacSigns.length; i++) {
+        const sign = zodiacSigns[i];
         try {
           const { content, technicalDetails } = await this.generateHoroscopeForSign(sign, astrologyData, date);
 
@@ -390,6 +406,11 @@ Format as JSON:
           await storage.updateHoroscopeGeneration(generation.id, {
             completedSigns: completedCount,
           });
+
+          // Add delay between signs to avoid rate limiting (except after the last one)
+          if (i < zodiacSigns.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+          }
 
         } catch (error) {
           console.error(`Failed to generate horoscope for ${sign.name}:`, error);
