@@ -31,6 +31,7 @@ import AgentConfigurator from "@/components/dashboard/AgentConfigurator";
 import SMSCommands from "@/components/dashboard/SMSCommands";
 import SystemTesting from "@/components/dashboard/SystemTesting";
 import DeploymentGuide from "@/components/dashboard/DeploymentGuide";
+import DatabaseConfiguration from "@/components/dashboard/DatabaseConfiguration";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -142,6 +143,9 @@ export default function Dashboard() {
       case "deployment":
       case "deploy":
         return <DeploymentGuide />;
+      case "database":
+      case "db-config":
+        return <DatabaseConfiguration />;
       case "license":
         return <LicenseManagement />;
       case "ollama":

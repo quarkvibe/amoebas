@@ -230,5 +230,50 @@ export function registerTestingRoutes(app: Express) {
       });
     }
   });
+  
+  /**
+   * Test database connection
+   * POST /api/database/test-connection
+   */
+  app.post('/api/database/test-connection', async (req: any, res) => {
+    try {
+      const { type, url } = req.body;
+      
+      // For now, just validate format
+      // In production, would actually test connection
+      
+      if (type === 'postgres' && !url) {
+        return res.json({
+          success: false,
+          message: 'DATABASE_URL required for PostgreSQL',
+        });
+      }
+      
+      if (type === 'postgres' && !url.startsWith('postgres')) {
+        return res.json({
+          success: false,
+          message: 'Invalid PostgreSQL connection string. Must start with postgresql://',
+        });
+      }
+      
+      // For SQLite, always works
+      if (type === 'sqlite') {
+        return res.json({
+          success: true,
+          message: 'SQLite will be created automatically on startup',
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: `${type} configuration looks valid`,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  });
 }
 
