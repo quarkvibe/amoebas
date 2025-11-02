@@ -59,6 +59,7 @@ import {
   emailServiceCredentials,
   type EmailServiceCredential,
   type InsertEmailServiceCredential,
+  phoneServiceCredentials,
   licenses,
   type License,
   type InsertLicense,
@@ -1358,6 +1359,177 @@ export class DatabaseStorage implements IStorage {
       .where(eq(payments.userId, userId))
       .orderBy(desc(payments.createdAt))
       .limit(limit);
+  }
+  
+  // ===========================================================================
+  // PHONE SERVICE CREDENTIALS (NEW - Twilio, AWS SNS for SMS & Voice)
+  // ===========================================================================
+  
+  async getPhoneServiceCredentials(userId: string): Promise<any[]> {
+    const rows = await db.select()
+      .from(phoneServiceCredentials)
+      .where(eq(phoneServiceCredentials.userId, userId));
+    
+    // Decrypt sensitive fields
+    return rows.map(row => ({
+      ...row,
+      apiKey: row.apiKey ? encryptionService.decrypt(row.apiKey) : null,
+      awsSecretAccessKey: row.awsSecretAccessKey ? encryptionService.decrypt(row.awsSecretAccessKey) : null,
+    }));
+  }
+  
+  async getPhoneServiceCredential(id: string, userId: string): Promise<any> {
+    const [credential] = await db.select()
+      .from(phoneServiceCredentials)
+      .where(and(
+        eq(phoneServiceCredentials.id, id),
+        eq(phoneServiceCredentials.userId, userId)
+      ));
+    
+    if (!credential) return undefined;
+    
+    // Decrypt sensitive fields
+    return {
+      ...credential,
+      apiKey: credential.apiKey ? encryptionService.decrypt(credential.apiKey) : null,
+      awsSecretAccessKey: credential.awsSecretAccessKey ? encryptionService.decrypt(credential.awsSecretAccessKey) : null,
+    };
+  }
+  
+  async getDefaultPhoneServiceCredential(userId: string): Promise<any> {
+    const [credential] = await db.select()
+      .from(phoneServiceCredentials)
+      .where(and(
+        eq(phoneServiceCredentials.userId, userId),
+        eq(phoneServiceCredentials.isDefault, true)
+      ))
+      .limit(1);
+    
+    if (!credential) return undefined;
+    
+    return {
+      ...credential,
+      apiKey: credential.apiKey ? encryptionService.decrypt(credential.apiKey) : null,
+      awsSecretAccessKey: credential.awsSecretAccessKey ? encryptionService.decrypt(credential.awsSecretAccessKey) : null,
+    };
+  }
+  
+  async createPhoneServiceCredential(data: any): Promise<any> {
+    // Encrypt sensitive fields before storing
+    const encryptedData = {
+      ...data,
+      apiKey: data.apiKey ? encryptionService.encrypt(data.apiKey) : null,
+      awsSecretAccessKey: data.awsSecretAccessKey ? encryptionService.encrypt(data.awsSecretAccessKey) : null,
+      config: data.config || {},
+    };
+    
+    const [newCredential] = await db.insert(phoneServiceCredentials)
+      .values(encryptedData)
+      .returning();
+    
+    // Return with decrypted fields
+    return {
+      ...newCredential,
+      apiKey: newCredential.apiKey ? encryptionService.decrypt(newCredential.apiKey) : null,
+      awsSecretAccessKey: newCredential.awsSecretAccessKey ? encryptionService.decrypt(newCredential.awsSecretAccessKey) : null,
+    };
+  }
+  
+  async updatePhoneServiceCredential(id: string, userId: string, updates: any): Promise<any> {
+    // Encrypt sensitive fields if being updated
+    const encryptedUpdates: any = { ...updates };
+    
+    if (updates.apiKey) {
+      encryptedUpdates.apiKey = encryptionService.encrypt(updates.apiKey);
+    }
+    if (updates.awsSecretAccessKey) {
+      encryptedUpdates.awsSecretAccessKey = encryptionService.encrypt(updates.awsSecretAccessKey);
+    }
+    
+    encryptedUpdates.updatedAt = new Date();
+    
+    const [updated] = await db.update(phoneServiceCredentials)
+      .set(encryptedUpdates)
+      .where(and(
+        eq(phoneServiceCredentials.id, id),
+        eq(phoneServiceCredentials.userId, userId)
+      ))
+      .returning();
+    
+    if (!updated) return undefined;
+    
+    return {
+      ...updated,
+      apiKey: updated.apiKey ? encryptionService.decrypt(updated.apiKey) : null,
+      awsSecretAccessKey: updated.awsSecretAccessKey ? encryptionService.decrypt(updated.awsSecretAccessKey) : null,
+    };
+  }
+  
+  async deletePhoneServiceCredential(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(phoneServiceCredentials)
+      .where(and(
+        eq(phoneServiceCredentials.id, id),
+        eq(phoneServiceCredentials.userId, userId)
+      ));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+  
+  // ===========================================================================
+  // REVIEW QUEUE SUPPORT (Update methods for generatedContent)
+  // ===========================================================================
+  
+  async updateGeneratedContent(id: string, userId: string, updates: any): Promise<any> {
+    const updateData: any = { ...updates, updatedAt: new Date() };
+    
+    const [updated] = await db.update(generatedContent)
+      .set(updateData)
+      .where(and(
+        eq(generatedContent.id, id),
+        eq(generatedContent.userId, userId)
+      ))
+      .returning();
+    
+    return updated;
+  }
+  
+  async getGeneratedContentById(id: string, userId: string): Promise<any> {
+    const [content] = await db.select()
+      .from(generatedContent)
+      .where(and(
+        eq(generatedContent.id, id),
+        eq(generatedContent.userId, userId)
+      ));
+    
+    return content;
+  }
+  
+  async deleteGeneratedContent(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(generatedContent)
+      .where(and(
+        eq(generatedContent.id, id),
+        eq(generatedContent.userId, userId)
+      ));
+    
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+  
+  // ===========================================================================
+  // UTILITY METHODS
+  // ===========================================================================
+  
+  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
+    try {
+      await db.execute(sql`SELECT 1`);
+      return { healthy: true, message: 'Database connection healthy' };
+    } catch (error: any) {
+      return { healthy: false, message: error.message };
+    }
+  }
+  
+  async getUserByPhoneNumber(phoneNumber: string): Promise<any[]> {
+    // For now, return empty array
+    // In future, could add phone field to users table or join with phone credentials
+    return [];
   }
 }
 
