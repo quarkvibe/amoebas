@@ -14,6 +14,7 @@ const navigation = [
   { id: 'agent-config', name: 'AI Agent Config', icon: 'fas fa-brain' },
   { id: 'sms-commands', name: 'SMS Commands', icon: 'fas fa-mobile-alt' },
   { id: 'testing', name: 'Testing & Logs', icon: 'fas fa-vial' },
+  { id: 'deployment', name: 'Deployment', icon: 'fas fa-server' },
   { id: 'configuration', name: 'Environment', icon: 'fas fa-cog' },
   { id: 'license', name: 'License', icon: 'fas fa-id-card' },
   { id: 'ollama', name: 'Ollama Setup', icon: 'fas fa-server' },

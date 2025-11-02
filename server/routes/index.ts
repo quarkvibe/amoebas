@@ -26,6 +26,7 @@ import { registerReviewRoutes } from './reviews';
 import { registerEnvironmentRoutes } from './environment';
 import { registerSMSCommandRoutes } from './smsCommands';
 import { registerTestingRoutes } from './testing';
+import { registerDeploymentRoutes } from './deployment';
 
 /**
  * ROUTE REGISTRY (Cell Nucleus)
@@ -82,6 +83,7 @@ export function registerRoutes(app: Express): Server {
   
   // Testing & diagnostics
   registerTestingRoutes(apiRouter);        // System testing, logs, diagnostics
+  registerDeploymentRoutes(apiRouter);     // Deployment integration, DNS guidance
   
   // =============================================================================
   // MOUNT API ROUTER
