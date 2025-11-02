@@ -1,58 +1,87 @@
-# 🦠 Amoeba - The Universal Application Assembler
+# 🦠 Amoeba - The AI Platform You Control From Your Phone
 
 [![npm version](https://badge.fury.io/js/amoeba-cli.svg)](https://www.npmjs.com/package/amoeba-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**The self-evolving platform that assembles ANY application through natural language + AI.**
+**The world's first AI agent platform with SMS command interface, professional quality control, and complete UI configuration. Self-hosted, BYOK, $29/month.**
 
-Amoeba is not just a content generator - it's a **universal substrate** that adapts to become whatever application you need. Use YOUR API keys, self-host anywhere, and watch it evolve based on your requirements. Perfect for content automation, data processing, workflow orchestration, and any AI-powered application.
+Text "generate newsletter" and it happens. Text "status" and know everything. Or use the beautiful web dashboard. Your choice.
+
+Amoeba is not just a tool - it's an **enterprise AI communication platform** that delivers via email, SMS, voice calls, webhooks, and more. With AI agents that fetch data autonomously and quality pipelines that ensure professional output.
 
 ---
 
 ## ✨ Features
 
-### 🔑 Bring Your Own Keys (BYOK)
-- **Complete Cost Control**: Use your own AI provider keys (OpenAI, Anthropic, Cohere)
-- **No Platform Fees**: Pay only your actual API costs (~$0.001-$0.05 per generation)
-- **Multiple Providers**: Switch between AI providers or use different ones for different templates
-- **Secure Storage**: AES-256-GCM encryption for all credentials
+### 🤖 AI Agent with Native Tools (NEW!)
+- **Autonomous Data Fetching**: AI automatically fetches RSS, web pages, APIs
+- **7 Native Tools**: fetch_rss_feed, fetch_webpage, extract_text, fetch_json, extract_data, optimize_for_sms, optimize_for_voice
+- **Function Calling**: OpenAI & Anthropic tool use
+- **Zero Extra API Keys**: All tools built-in and free!
+- **Example**: "Fetch top tech news and summarize" → AI does everything automatically
 
-### 🎨 Powerful Template System
-- **Dynamic Variables**: Create reusable templates with placeholder variables
-- **Output Formats**: Text, JSON, Markdown, or HTML
-- **System Prompts**: Fine-tune AI behavior for each template
-- **Validation**: Built-in variable validation and error handling
+### 🛡️ Enterprise Quality Control (NEW!)
+- **6-Stage Pipeline**: Parse → Safety → Quality → Cleanup → Validate → Review
+- **Quality Scoring**: 0-100 score for every AI output
+- **Safety Checks**: PII detection, placeholder detection, content moderation
+- **Human Review Workflow**: Optional approval queue with auto-approval rules
+- **Statistics Dashboard**: Track quality metrics over time
 
-### 📊 Data Source Integration
-- **RSS Feeds**: Auto-fetch from any RSS/Atom feed
-- **REST APIs**: Pull data from external services
-- **Webhooks**: Receive data from push notifications
-- **Static Data**: Use predefined datasets
-- **JSONPath Extraction**: Parse and extract specific fields
-
-### 🚀 Multi-Channel Delivery
+### 📱 Multi-Channel Delivery (ENHANCED!)
 - **Email**: SendGrid, AWS SES, or SMTP
+- **SMS**: Twilio text messages (NEW!)
+- **Voice Calls**: Text-to-speech phone calls (NEW!)
 - **Webhooks**: POST to any endpoint
 - **API**: Expose via REST endpoints
 - **File**: Save locally or to S3
+- **Auto-Optimization**: Content adapts to each channel
+
+### 📞 SMS Command Interface ⭐ UNIQUE!
+- **Control via Text**: Text "status", "generate", "approve all"
+- **Natural Language**: "What's the system health?"
+- **Mobile-First Admin**: Manage from your phone, no laptop needed
+- **Secure**: Authorized phone numbers only
+- **Fast**: 2-5 second responses
+- **No App Required**: Works on any phone
+
+### 🎨 UI-First Configuration (NEW!)
+- **Zero Terminal Access**: Everything configurable from beautiful dashboard
+- **Credentials Manager**: Add AI, email, phone credentials via forms
+- **Environment Manager**: Edit .env file from UI
+- **Agent Configurator**: Edit AI system prompts, enable/disable tools
+- **SaaS-Level UX**: Professional polish, anyone can use
+
+### 🔑 Complete BYOK (Enhanced!)
+- **AI Providers**: OpenAI, Anthropic, Cohere, Ollama
+- **Email Services**: SendGrid, AWS SES
+- **Phone Services**: Twilio (SMS & Voice)
+- **Secure Storage**: AES-256-GCM encryption
+- **Complete Cost Control**: Pay only actual API costs
+
+### 🧪 Built-in Testing & Diagnostics (NEW!)
+- **System Tests**: 5 test suites, 10+ tests
+- **Accessible Everywhere**: API, SMS, CLI, Dashboard
+- **Log Viewing**: Real-time, filterable logs
+- **Diagnostics**: System health, memory, services
+- **SMS Testing**: Text "test" to run system checks
 
 ### ⏰ Automated Scheduling
-- **Cron Expressions**: Standard cron syntax for flexible scheduling
-- **Dynamic Jobs**: Create, edit, or pause jobs in real-time
-- **Error Recovery**: Automatic retry with exponential backoff
-- **Execution History**: Track success/failure with detailed logs
+- **Cron Expressions**: Standard cron syntax
+- **Dynamic Jobs**: Create, edit, pause in real-time
+- **Error Recovery**: Automatic retry with backoff
+- **Execution History**: Track success/failure
 
 ### 📡 Real-Time Monitoring
-- **Live Terminal**: 23 diagnostic commands for system inspection
-- **Traffic Light System**: Instant visual health status (🟢🟡🔴)
-- **Activity Feed**: Real-time event streaming via WebSocket
-- **Performance Metrics**: Track tokens, costs, and execution times
+- **Live Terminal**: 27+ diagnostic commands
+- **Traffic Light System**: Visual health status (🟢🟡🔴)
+- **Activity Feed**: Real-time event streaming
+- **Performance Metrics**: Tokens, costs, execution times
 
 ### 🖥️ Professional CLI
-- **25+ Commands**: Manage everything from the terminal
+- **27+ Commands**: Including "test", "diagnostics", "logs"
 - **Interactive Prompts**: Guided configuration
 - **JSON Output**: Scriptable automation
-- **Batch Operations**: Bulk content generation
+- **Batch Operations**: Bulk operations
 
 ---
 
@@ -342,11 +371,37 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ---
 
+## 📚 Documentation
+
+### Quick Links
+- **[START_HERE.md](START_HERE.md)** ⭐ Start here! (5-minute orientation)
+- **[Quick Start Guide](docs/guides/QUICK_START_GUIDE.md)** - 30-minute setup
+- **[Immediate Action Plan](docs/guides/IMMEDIATE_ACTION_PLAN.md)** - 21-day launch timeline
+
+### Core Philosophy
+- **[MANIFESTO.md](MANIFESTO.md)** - Core principles & standards
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Cellular design philosophy
+- **[VISION.md](VISION.md)** - Product vision & roadmap
+- **[SIMPLICITY_DOCTRINE.md](SIMPLICITY_DOCTRINE.md)** - Development philosophy
+
+### Implementation Guides
+- **[AI Tools](docs/implementation/AI_TOOLS_IMPLEMENTATION.md)** - 7 native tools
+- **[Quality Pipeline](docs/implementation/OUTPUT_PIPELINE_IMPLEMENTATION.md)** - Quality control
+- **[Voice & SMS](docs/implementation/VOICE_SMS_IMPLEMENTATION.md)** - Multi-channel delivery
+- **[SMS Commands](docs/implementation/SMS_COMMAND_INTERFACE.md)** ⭐ Mobile admin
+- **[UI Configuration](docs/implementation/UI_FIRST_ARCHITECTURE.md)** - Dashboard setup
+- **[Testing System](docs/implementation/TESTING_SYSTEM_IMPLEMENTATION.md)** - Testing & logs
+
+### More Documentation
+- **[Full Documentation Index](docs/README.md)** - Complete docs navigation
+
+---
+
 ## 🆘 Support
 
-- **Documentation**: [/docs](/docs)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/Ameoba/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/Ameoba/discussions)
+- **Documentation**: [/docs](/docs) (comprehensive guides)
+- **Issues**: [GitHub Issues](https://github.com/quarkvibe/Ameoba/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/quarkvibe/Ameoba/discussions)
 
 ---
 
@@ -378,15 +433,20 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ## 🌟 Why Amoeba?
 
-| Feature | Amoeba | Zapier | Make | Custom Code |
-|---------|--------|--------|------|-------------|
-| AI-First | ✅ | ❌ | ❌ | ⚠️ |
-| BYOK | ✅ | ❌ | ❌ | ✅ |
-| Self-Hosted | ✅ | ❌ | ❌ | ✅ |
-| No Per-Use Fees | ✅ | ❌ | ❌ | ✅ |
-| Beautiful UI | ✅ | ✅ | ✅ | ❌ |
-| Real-time Monitor | ✅ | ❌ | ❌ | ❌ |
-| Professional CLI | ✅ | ❌ | ❌ | ⚠️ |
+| Feature | Amoeba | Zapier | Make | n8n | Twilio Autopilot |
+|---------|--------|--------|------|-----|------------------|
+| AI Agent with Tools | ✅ | ❌ | ❌ | ⚠️ | ⚠️ |
+| Quality Pipeline | ✅ | ❌ | ❌ | ❌ | ❌ |
+| SMS Delivery | ✅ | ⚠️ | ⚠️ | ❌ | ✅ |
+| Voice Delivery | ✅ | ❌ | ❌ | ❌ | ✅ |
+| **SMS Command Interface** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| UI-First Config | ✅ | ✅ | ✅ | ⚠️ | ✅ |
+| Self-Hosted | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Complete BYOK | ✅ | ❌ | ❌ | ⚠️ | ❌ |
+| Open Source | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Price/month | $29 | $20-599 | $9-299 | $20-500 | $99-499 |
+
+**Amoeba is the ONLY platform with SMS command interface!** ⭐
 
 ---
 
@@ -405,7 +465,7 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ---
 
-**Made with ❤️ by Rex Koopa**
+**Made with ❤️ by QuarkVibe Inc.**
 
 **Give it a ⭐️ if you like it!**
 

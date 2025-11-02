@@ -1,6 +1,8 @@
 import { storage } from '../storage';
 import { activityMonitor } from './activityMonitor';
 import { emailService } from './emailService';
+import { voiceService } from './voiceService';
+import { smsService } from './smsService';
 
 /**
  * Delivery Service
@@ -146,6 +148,12 @@ export class DeliveryService {
       
       case 'file':
         return await this.deliverViaFile(channel, content);
+      
+      case 'sms':
+        return await this.deliverViaSMS(channel, content, userId);
+      
+      case 'voice':
+        return await this.deliverViaVoice(channel, content, userId);
       
       default:
         return {
@@ -335,6 +343,119 @@ export class DeliveryService {
     }
   }
 
+  /**
+   * Deliver via SMS
+   */
+  private async deliverViaSMS(
+    channel: any,
+    content: string,
+    userId: string
+  ): Promise<{ success: boolean; error?: string; metadata?: any }> {
+    
+    try {
+      const config = channel.config || {};
+      const recipients = config.recipients || [];
+      
+      if (recipients.length === 0) {
+        return {
+          success: false,
+          error: 'No SMS recipients configured',
+        };
+      }
+      
+      // Optimize content for SMS (shorten if needed)
+      const smsContent = await smsService.optimizeForSMS(content, 320);
+      
+      // Send SMS
+      const result = await smsService.sendSMS(userId, {
+        to: recipients,
+        content: smsContent,
+      });
+      
+      return {
+        success: result.success,
+        error: result.error,
+        metadata: {
+          recipients: recipients.join(', '),
+          segments: result.segments,
+          cost: result.cost,
+          provider: 'twilio',
+        },
+      };
+      
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+  
+  /**
+   * Deliver via Voice Call
+   */
+  private async deliverViaVoice(
+    channel: any,
+    content: string,
+    userId: string
+  ): Promise<{ success: boolean; error?: string; metadata?: any }> {
+    
+    try {
+      const config = channel.config || {};
+      const recipients = config.recipients || [];
+      
+      if (recipients.length === 0) {
+        return {
+          success: false,
+          error: 'No voice call recipients configured',
+        };
+      }
+      
+      // Optimize content for voice (shorten, add pauses)
+      const voiceContent = await voiceService.optimizeForVoice(content);
+      
+      const results = [];
+      
+      // Make call to each recipient
+      for (const recipient of recipients) {
+        const result = await voiceService.makeVoiceCall(userId, {
+          to: recipient,
+          content: voiceContent,
+          voice: config.voice || 'Polly.Joanna',
+          language: config.language || 'en-US',
+          speed: config.speed || 1.0,
+        });
+        
+        results.push({
+          recipient,
+          success: result.success,
+          callSid: result.callSid,
+          error: result.error,
+        });
+      }
+      
+      const allSucceeded = results.every(r => r.success);
+      const totalCost = results.reduce((sum, r: any) => sum + (r.cost || 0), 0);
+      
+      return {
+        success: allSucceeded,
+        metadata: {
+          recipients: recipients.join(', '),
+          calls: results.length,
+          cost: totalCost,
+          provider: 'twilio',
+          results,
+        },
+      };
+      
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+  
   /**
    * Format content as HTML email
    */

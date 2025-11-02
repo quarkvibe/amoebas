@@ -307,6 +307,33 @@ export const emailServiceCredentials = pgTable("email_service_credentials", {
   index("idx_email_creds_user").on(table.userId),
 ]);
 
+// Phone service credentials (user-supplied for SMS & Voice)
+// SECURITY: All secret fields (accountSid, apiKey/authToken) MUST be encrypted at-rest
+// The service layer handles encryption/decryption transparently
+export const phoneServiceCredentials = pgTable("phone_service_credentials", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  provider: varchar("provider", { length: 50 }).notNull(), // 'twilio', 'aws_sns', 'vonage', etc.
+  name: varchar("name", { length: 200 }).notNull(),
+  // Twilio fields
+  accountSid: text("account_sid"), // Twilio Account SID (public identifier)
+  apiKey: text("api_key"), // ENCRYPTED - Twilio Auth Token or API Key
+  phoneNumber: varchar("phone_number", { length: 20 }), // Twilio phone number (E.164 format: +1234567890)
+  // AWS SNS fields
+  awsAccessKeyId: text("aws_access_key_id"), // for AWS SNS (public, not secret)
+  awsSecretAccessKey: text("aws_secret_access_key"), // ENCRYPTED - for AWS SNS
+  awsRegion: varchar("aws_region", { length: 50 }), // for AWS SNS (public)
+  // Additional config
+  config: jsonb("config"), // voice settings, default language, etc.
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  lastUsed: timestamp("last_used"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_phone_creds_user").on(table.userId),
+]);
+
 // Workflows - AI content generation configurations
 export const workflows = pgTable("workflows", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),

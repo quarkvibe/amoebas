@@ -393,6 +393,199 @@ export function registerCredentialRoutes(router: Router) {
       }
     }
   );
+  
+  // =============================================================================
+  // PHONE SERVICE CREDENTIALS (Twilio, AWS SNS) - NEW
+  // =============================================================================
+  
+  // List phone credentials (masked)
+  router.get('/phone-credentials', 
+    isAuthenticated, 
+    generousRateLimit,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const credentials = await storage.getPhoneServiceCredentials(userId);
+        
+        // Mask sensitive fields
+        const safeCredentials = credentials.map(cred => ({
+          ...cred,
+          apiKey: cred.apiKey ? `${cred.apiKey.substring(0, 8)}...***` : null,
+          maskedKey: cred.apiKey ? `${cred.apiKey.substring(0, 8)}...***` : null,
+        }));
+        
+        res.json(safeCredentials);
+      } catch (error) {
+        console.error('Error fetching phone credentials:', error);
+        res.status(500).json({ message: 'Failed to fetch phone credentials' });
+      }
+    }
+  );
+
+  // Get single phone credential
+  router.get('/phone-credentials/:id', 
+    isAuthenticated, 
+    standardRateLimit,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const { id } = req.params;
+        
+        const credential = await storage.getPhoneServiceCredential(id, userId);
+        
+        if (!credential) {
+          return res.status(404).json({ message: 'Credential not found' });
+        }
+        
+        res.json(credential);
+      } catch (error) {
+        console.error('Error fetching phone credential:', error);
+        res.status(500).json({ message: 'Failed to fetch credential' });
+      }
+    }
+  );
+
+  // Create phone credential
+  router.post('/phone-credentials', 
+    isAuthenticated, 
+    standardRateLimit,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const { provider, name, accountSid, apiKey, phoneNumber, config, isDefault, isActive } = req.body;
+        
+        // Validation
+        if (!provider || !name) {
+          return res.status(400).json({ 
+            message: 'provider and name are required' 
+          });
+        }
+        
+        if (!['twilio', 'aws_sns'].includes(provider.toLowerCase())) {
+          return res.status(400).json({ 
+            message: 'Invalid provider. Must be: twilio or aws_sns' 
+          });
+        }
+        
+        // Provider-specific validation
+        if (provider.toLowerCase() === 'twilio' && (!accountSid || !apiKey)) {
+          return res.status(400).json({ message: 'accountSid and apiKey required for Twilio' });
+        }
+        
+        // Create credential
+        const credential = await storage.createPhoneServiceCredential({
+          userId,
+          provider: provider.toLowerCase(),
+          name,
+          accountSid: accountSid || null,
+          apiKey: apiKey || null,
+          phoneNumber: phoneNumber || null,
+          config: config || null,
+          isDefault: isDefault || false,
+          isActive: isActive !== false,
+        });
+        
+        res.status(201).json({
+          ...credential,
+          apiKey: `${credential.apiKey.substring(0, 8)}...***`,
+        });
+      } catch (error) {
+        console.error('Error creating phone credential:', error);
+        res.status(500).json({ message: 'Failed to create credential' });
+      }
+    }
+  );
+
+  // Update phone credential
+  router.put('/phone-credentials/:id', 
+    isAuthenticated, 
+    standardRateLimit,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const { id } = req.params;
+        const { name, accountSid, apiKey, phoneNumber, config, isDefault, isActive } = req.body;
+        
+        const updates: any = {};
+        if (name !== undefined) updates.name = name;
+        if (accountSid !== undefined) updates.accountSid = accountSid;
+        if (apiKey !== undefined) updates.apiKey = apiKey;
+        if (phoneNumber !== undefined) updates.phoneNumber = phoneNumber;
+        if (config !== undefined) updates.config = config;
+        if (isDefault !== undefined) updates.isDefault = isDefault;
+        if (isActive !== undefined) updates.isActive = isActive;
+        
+        const credential = await storage.updatePhoneServiceCredential(id, userId, updates);
+        
+        if (!credential) {
+          return res.status(404).json({ message: 'Credential not found' });
+        }
+        
+        res.json({
+          ...credential,
+          apiKey: credential.apiKey ? `${credential.apiKey.substring(0, 8)}...***` : null,
+        });
+      } catch (error) {
+        console.error('Error updating phone credential:', error);
+        res.status(500).json({ message: 'Failed to update credential' });
+      }
+    }
+  );
+
+  // Delete phone credential
+  router.delete('/phone-credentials/:id', 
+    isAuthenticated, 
+    standardRateLimit,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const { id } = req.params;
+        
+        await storage.deletePhoneServiceCredential(id, userId);
+        
+        res.json({ message: 'Phone credential deleted successfully' });
+      } catch (error) {
+        console.error('Error deleting phone credential:', error);
+        res.status(500).json({ message: 'Failed to delete credential' });
+      }
+    }
+  );
+
+  // Test phone credential (send test SMS or make test call)
+  router.post('/phone-credentials/:id/test', 
+    isAuthenticated, 
+    strictRateLimit,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const { id } = req.params;
+        const { testPhoneNumber, testType } = req.body; // testType: 'sms' or 'voice'
+        
+        if (!testPhoneNumber) {
+          return res.status(400).json({ message: 'testPhoneNumber required' });
+        }
+        
+        const credential = await storage.getPhoneServiceCredential(id, userId);
+        if (!credential) {
+          return res.status(404).json({ message: 'Credential not found' });
+        }
+        
+        // TODO: Implement actual SMS/voice test
+        // For now, just return success
+        res.json({ 
+          success: true, 
+          provider: credential.provider,
+          message: `Test ${testType || 'SMS'} would be sent to ${testPhoneNumber}` 
+        });
+      } catch (error) {
+        console.error('Error testing phone credential:', error);
+        res.status(500).json({ 
+          success: false,
+          message: 'Phone test failed' 
+        });
+      }
+    }
+  );
 }
 
 

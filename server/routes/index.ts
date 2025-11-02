@@ -22,6 +22,10 @@ import { registerScheduleRoutes } from './schedules';
 import { registerDistributionRoutes } from './distributions';
 import { registerUserRoutes } from './users';
 import { registerApiKeyRoutes } from './apiKeys';
+import { registerReviewRoutes } from './reviews';
+import { registerEnvironmentRoutes } from './environment';
+import { registerSMSCommandRoutes } from './smsCommands';
+import { registerTestingRoutes } from './testing';
 
 /**
  * ROUTE REGISTRY (Cell Nucleus)
@@ -52,6 +56,7 @@ export function registerRoutes(app: Express): Server {
   registerContentRoutes(apiRouter);        // Content generation (the "anything generator")
   registerTemplateRoutes(apiRouter);       // Content template management
   registerCredentialRoutes(apiRouter);     // BYOK credentials (AI + Email)
+  registerReviewRoutes(apiRouter);         // Content review queue & approval workflow
   
   // Data flow & automation
   registerDataSourceRoutes(apiRouter);     // Input sources (RSS, API, Webhook, Static)
@@ -72,6 +77,11 @@ export function registerRoutes(app: Express): Server {
   // User & access management
   registerUserRoutes(apiRouter);           // User profile & settings
   registerApiKeyRoutes(apiRouter);         // Programmatic API access
+  registerEnvironmentRoutes(apiRouter);    // Environment variable management (UI-based)
+  registerSMSCommandRoutes(app);           // SMS command interface (webhook at root level)
+  
+  // Testing & diagnostics
+  registerTestingRoutes(apiRouter);        // System testing, logs, diagnostics
   
   // =============================================================================
   // MOUNT API ROUTER

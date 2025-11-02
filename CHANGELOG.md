@@ -129,7 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker image: 450MB
 
 **Credits:**
-- Built by Suncat Solutions LLC
+- Built by QuarkVibe Inc.
 - Powered by OpenAI, Anthropic, Cohere
 - UI by Radix UI + Tailwind CSS
 - Database by Drizzle ORM + PostgreSQL

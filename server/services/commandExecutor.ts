@@ -3,6 +3,7 @@ import { cronService } from './cronService';
 import { queueService } from './queueService';
 import { integrationService } from './integrationService';
 import { activityMonitor } from './activityMonitor';
+import { testingService } from './testingService';
 import os from 'os';
 import { db } from '../db';
 
@@ -75,6 +76,13 @@ export class CommandExecutor {
         case 'logs':
           return await this.recentLogs(parseInt(args[0]) || 20);
         
+        case 'test':
+          return await this.runTests(args[0]);
+        
+        case 'diagnostics':
+        case 'diag':
+          return await this.systemDiagnostics();
+        
         case 'clear':
           return 'CLEAR_SCREEN'; // Special return value to clear UI
         
@@ -98,6 +106,8 @@ export class CommandExecutor {
 
 📊 SYSTEM STATUS:
   status / health   - Complete system health check
+  test [suite]      - Run system tests (all or specific suite)
+  diagnostics       - Full system diagnostics
   metrics / stats   - System metrics and performance
   uptime            - Server uptime and process info
   memory / mem      - Memory usage statistics
@@ -741,6 +751,80 @@ TIP: Watch this terminal for live updates
   }
 
   /**
+   * Run system tests
+   */
+  private async runTests(testName?: string): Promise<string> {
+    try {
+      if (!testName) {
+        // Run all tests
+        const results = await testingService.runAllTests();
+        
+        return `
+╔════════════════════════════════════════════════════════════╗
+║                    SYSTEM TEST RESULTS                     ║
+╚════════════════════════════════════════════════════════════╝
+
+${results.success ? '✅' : '❌'} Overall: ${results.passed}/${results.passed + results.failed} tests passed
+
+Duration: ${results.duration}ms
+Status: ${results.success ? 'ALL PASSED ✅' : 'SOME FAILED ❌'}
+
+Run 'test <suite>' for specific tests
+Available suites: database, ai_providers, delivery, tools, integration
+`;
+      } else {
+        // Run specific test or suite
+        const result = await testingService.testService(testName);
+        
+        return `
+🧪 Test: ${testName}
+${result.success ? '✅' : '❌'} Result: ${result.message}
+Duration: ${result.duration}ms
+${result.error ? `Error: ${result.error}` : ''}
+`;
+      }
+    } catch (error: any) {
+      return `❌ Test execution failed: ${error.message}`;
+    }
+  }
+  
+  /**
+   * System diagnostics
+   */
+  private async systemDiagnostics(): Promise<string> {
+    try {
+      const diag = await testingService.getDiagnostics();
+      
+      return `
+╔════════════════════════════════════════════════════════════╗
+║                  SYSTEM DIAGNOSTICS                        ║
+╚════════════════════════════════════════════════════════════╝
+
+🖥️  SYSTEM:
+  Uptime: ${Math.floor(diag.system.uptime / 60)} minutes
+  Memory: ${Math.round(diag.system.memory.heapUsed / 1024 / 1024)}MB / ${Math.round(diag.system.memory.heapTotal / 1024 / 1024)}MB
+  Platform: ${diag.system.platform}
+  Node: ${diag.system.version}
+
+🗄️  DATABASE:
+  Status: ${diag.database.connected ? '✅ Connected' : '❌ Disconnected'}
+
+🔌 SERVICES:
+  AI: ${diag.services.ai ? '✅' : '❌'} Configured
+  Email: ${diag.services.email ? '✅' : '❌'} Configured
+  SMS: ${diag.services.sms ? '✅' : '❌'} Configured
+  Voice: ${diag.services.voice ? '✅' : '❌'} Configured
+
+⚙️  ENVIRONMENT:
+  Mode: ${diag.environment.nodeEnv || 'development'}
+  Port: ${diag.environment.port || '5000'}
+`;
+    } catch (error: any) {
+      return `❌ Diagnostics failed: ${error.message}`;
+    }
+  }
+  
+  /**
    * Get available commands
    */
   getCommands(): string[] {
@@ -749,7 +833,7 @@ TIP: Watch this terminal for live updates
       'jobs', 'queue', 'templates', 'content', 
       'generate', 'run', 'db', 'memory', 'mem', 
       'uptime', 'env', 'integrations', 'cron', 
-      'logs', 'clear', 'version'
+      'logs', 'test', 'diagnostics', 'diag', 'clear', 'version'
     ];
   }
 }

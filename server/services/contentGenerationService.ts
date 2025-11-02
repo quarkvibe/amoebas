@@ -1,5 +1,8 @@
 import { storage } from '../storage';
 import { activityMonitor } from './activityMonitor';
+import { outputPipelineService, PipelineConfig } from './outputPipelineService';
+import { reviewQueueService } from './reviewQueueService';
+import { aiToolsService } from './aiToolsService';
 import OpenAI from 'openai';
 import { Ollama } from 'ollama';
 
@@ -17,6 +20,7 @@ interface GenerationOptions {
 
 interface GenerationResult {
   content: string;
+  status?: 'draft' | 'pending_review' | 'approved' | 'rejected';
   metadata: {
     model: string;
     provider: string;
@@ -28,6 +32,8 @@ interface GenerationResult {
     cost: number;
     duration: number;
     timestamp: string;
+    pipeline?: any;
+    reviewRequired?: boolean;
   };
 }
 
@@ -67,25 +73,55 @@ export class ContentGenerationService {
       const prompt = this.buildPrompt(template, options.variables || {});
 
       // 4. Call AI API based on provider
-      const result = await this.callAI(credential, template, prompt);
+      const aiResult = await this.callAI(credential, template, prompt);
 
-      // 5. Log success
+      // 5. Process output through pipeline
+      const pipelineConfig: PipelineConfig = {
+        parseFormat: template.outputFormat || 'text',
+        validateOutput: true,
+        safetyCheck: template.settings?.safetyCheck !== false,
+        qualityScore: template.settings?.qualityScore !== false,
+        cleanup: template.settings?.cleanup !== false,
+        formatting: {
+          removeEmptyLines: true,
+          trimWhitespace: true,
+          fixPunctuation: true,
+          removeDuplicateSpaces: true,
+        },
+        requireApproval: template.settings?.requireApproval || false,
+        autoApprovalRules: template.settings?.autoApprovalRules || [],
+        minLength: template.settings?.minLength,
+        maxLength: template.settings?.maxLength,
+        requiredKeywords: template.settings?.requiredKeywords,
+        forbiddenKeywords: template.settings?.forbiddenKeywords,
+      };
+
+      const pipelineResult = await outputPipelineService.processOutput(
+        aiResult.content,
+        pipelineConfig,
+        { template, variables: options.variables }
+      );
+
+      // 6. Log success
       const duration = Date.now() - startTime;
       activityMonitor.logContentGeneration(
         template.name,
         'completed',
-        result.metadata.tokens.total
+        aiResult.metadata.tokens.total
       );
 
       activityMonitor.logActivity('success', 
-        `✅ Content generated: ${result.metadata.tokens.total} tokens, $${result.metadata.cost.toFixed(4)}, ${duration}ms`
+        `✅ Content generated: ${aiResult.metadata.tokens.total} tokens, $${aiResult.metadata.cost.toFixed(4)}, ${duration}ms, quality: ${pipelineResult.metadata.qualityScore || 'N/A'}`
       );
 
       return {
-        ...result,
+        content: pipelineResult.processed,
+        status: pipelineResult.status,
         metadata: {
-          ...result.metadata,
+          ...aiResult.metadata,
           duration,
+          pipeline: pipelineResult.metadata,
+          reviewRequired: pipelineResult.status === 'pending_review',
         },
       };
 
@@ -147,7 +183,7 @@ export class ContentGenerationService {
   }
 
   /**
-   * Call OpenAI API
+   * Call OpenAI API (with optional function calling)
    */
   private async callOpenAI(
     credential: any,
@@ -163,23 +199,98 @@ export class ContentGenerationService {
     const model = template.settings?.model || 'gpt-4o-mini';
     const maxTokens = template.settings?.maxTokens || 1000;
     const temperature = template.settings?.temperature || 0.7;
+    const toolsEnabled = template.settings?.toolsEnabled || false;
+    const maxToolCalls = template.settings?.maxToolCalls || 10;
 
     try {
-      const response = await client.chat.completions.create({
+      // Build initial messages
+      const messages: any[] = [
+        ...(template.systemPrompt ? [{ role: 'system' as const, content: template.systemPrompt }] : []),
+        { role: 'user' as const, content: prompt },
+      ];
+      
+      // Get tools if enabled
+      const tools = toolsEnabled ? aiToolsService.getToolDefinitions() : undefined;
+      
+      let totalTokens = 0;
+      let toolCallCount = 0;
+      let toolsUsed: string[] = [];
+      
+      // Initial AI call
+      let response = await client.chat.completions.create({
         model,
-        messages: [
-          ...(template.systemPrompt ? [{ role: 'system' as const, content: template.systemPrompt }] : []),
-          { role: 'user' as const, content: prompt },
-        ],
+        messages,
         max_tokens: maxTokens,
         temperature,
+        ...(tools && { tools, tool_choice: 'auto' }),
       });
-
+      
+      // Track tokens
+      totalTokens += response.usage?.total_tokens || 0;
+      
+      // Handle function/tool calls (iterative loop)
+      while (
+        response.choices[0]?.finish_reason === 'tool_calls' &&
+        toolCallCount < maxToolCalls
+      ) {
+        const toolCalls = response.choices[0]?.message?.tool_calls;
+        
+        if (!toolCalls || toolCalls.length === 0) break;
+        
+        activityMonitor.logActivity('info', `🔧 AI requesting ${toolCalls.length} tool call(s)`);
+        
+        // Add assistant's message with tool calls to conversation
+        messages.push(response.choices[0].message);
+        
+        // Execute each tool call
+        for (const toolCall of toolCalls) {
+          toolCallCount++;
+          const toolName = toolCall.function.name;
+          const toolArgs = JSON.parse(toolCall.function.arguments);
+          
+          activityMonitor.logActivity('debug', `🔧 Tool: ${toolName} with args: ${JSON.stringify(toolArgs).substring(0, 100)}`);
+          toolsUsed.push(toolName);
+          
+          // Execute tool
+          const toolResult = await aiToolsService.executeTool(toolName, toolArgs);
+          
+          // Add tool result to messages
+          messages.push({
+            role: 'tool' as const,
+            tool_call_id: toolCall.id,
+            content: JSON.stringify(toolResult.data),
+          });
+          
+          activityMonitor.logActivity('success', `✅ Tool ${toolName} executed successfully`);
+        }
+        
+        // Continue conversation with tool results
+        response = await client.chat.completions.create({
+          model,
+          messages,
+          max_tokens: maxTokens,
+          temperature,
+          ...(tools && { tools, tool_choice: 'auto' }),
+        });
+        
+        // Track tokens
+        totalTokens += response.usage?.total_tokens || 0;
+      }
+      
+      // Check if we hit max tool calls
+      if (toolCallCount >= maxToolCalls) {
+        activityMonitor.logActivity('warning', `⚠️ Hit max tool calls limit (${maxToolCalls})`);
+      }
+      
       const content = response.choices[0]?.message?.content || '';
-      const usage = response.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+      const usage = response.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: totalTokens };
 
       // Calculate cost (approximate, based on GPT-4o-mini pricing)
       const cost = this.calculateOpenAICost(model, usage.prompt_tokens, usage.completion_tokens);
+
+      if (toolsUsed.length > 0) {
+        activityMonitor.logActivity('info', `🔧 Tools used: ${toolsUsed.join(', ')} (${toolCallCount} calls)`);
+      }
 
       return {
         content,
@@ -189,11 +300,13 @@ export class ContentGenerationService {
           tokens: {
             prompt: usage.prompt_tokens,
             completion: usage.completion_tokens,
-            total: usage.total_tokens,
+            total: totalTokens,
           },
           cost,
           duration: 0, // Set by caller
           timestamp: new Date().toISOString(),
+          toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
+          toolCallCount: toolCallCount > 0 ? toolCallCount : undefined,
         },
       };
 
@@ -210,7 +323,7 @@ export class ContentGenerationService {
   }
 
   /**
-   * Call Anthropic API
+   * Call Anthropic API (with optional tool use)
    */
   private async callAnthropic(
     credential: any,
@@ -222,9 +335,25 @@ export class ContentGenerationService {
     const model = template.settings?.model || 'claude-3-5-sonnet-20241022';
     const maxTokens = template.settings?.maxTokens || 1000;
     const temperature = template.settings?.temperature || 0.7;
+    const toolsEnabled = template.settings?.toolsEnabled || false;
+    const maxToolCalls = template.settings?.maxToolCalls || 10;
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      // Build initial messages
+      const messages: any[] = [
+        { role: 'user', content: prompt },
+      ];
+      
+      // Get tools if enabled (Anthropic format)
+      const tools = toolsEnabled ? this.convertToolsToAnthropicFormat(aiToolsService.getToolDefinitions()) : undefined;
+      
+      let totalInputTokens = 0;
+      let totalOutputTokens = 0;
+      let toolCallCount = 0;
+      let toolsUsed: string[] = [];
+      
+      // Initial API call
+      let response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -235,10 +364,9 @@ export class ContentGenerationService {
           model,
           max_tokens: maxTokens,
           temperature,
-          messages: [
-            { role: 'user', content: prompt },
-          ],
+          messages,
           ...(template.systemPrompt && { system: template.systemPrompt }),
+          ...(tools && { tools }),
         }),
       });
 
@@ -247,12 +375,98 @@ export class ContentGenerationService {
         throw new Error(`Anthropic API error: ${error.error?.message || response.statusText}`);
       }
 
-      const data = await response.json();
-      const content = data.content[0]?.text || '';
-      const usage = data.usage || { input_tokens: 0, output_tokens: 0 };
+      let data = await response.json();
+      totalInputTokens += data.usage?.input_tokens || 0;
+      totalOutputTokens += data.usage?.output_tokens || 0;
+      
+      // Handle tool use (Anthropic calls them "tool_use" blocks)
+      while (
+        data.stop_reason === 'tool_use' &&
+        toolCallCount < maxToolCalls
+      ) {
+        const toolUseBlocks = data.content.filter((block: any) => block.type === 'tool_use');
+        
+        if (toolUseBlocks.length === 0) break;
+        
+        activityMonitor.logActivity('info', `🔧 Claude requesting ${toolUseBlocks.length} tool call(s)`);
+        
+        // Add assistant's response to conversation
+        messages.push({
+          role: 'assistant',
+          content: data.content,
+        });
+        
+        // Execute tools and build tool results
+        const toolResults: any[] = [];
+        
+        for (const toolUse of toolUseBlocks) {
+          toolCallCount++;
+          const toolName = toolUse.name;
+          const toolArgs = toolUse.input;
+          
+          activityMonitor.logActivity('debug', `🔧 Tool: ${toolName}`);
+          toolsUsed.push(toolName);
+          
+          // Execute tool
+          const toolResult = await aiToolsService.executeTool(toolName, toolArgs);
+          
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: toolUse.id,
+            content: JSON.stringify(toolResult.data),
+          });
+          
+          activityMonitor.logActivity('success', `✅ Tool ${toolName} executed successfully`);
+        }
+        
+        // Add tool results as user message
+        messages.push({
+          role: 'user',
+          content: toolResults,
+        });
+        
+        // Continue conversation
+        response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': credential.apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: maxTokens,
+            temperature,
+            messages,
+            ...(template.systemPrompt && { system: template.systemPrompt }),
+            ...(tools && { tools }),
+          }),
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(`Anthropic API error: ${error.error?.message || response.statusText}`);
+        }
+        
+        data = await response.json();
+        totalInputTokens += data.usage?.input_tokens || 0;
+        totalOutputTokens += data.usage?.output_tokens || 0;
+      }
+      
+      // Check if we hit max tool calls
+      if (toolCallCount >= maxToolCalls) {
+        activityMonitor.logActivity('warning', `⚠️ Hit max tool calls limit (${maxToolCalls})`);
+      }
+      
+      // Extract final text response
+      const content = data.content.find((block: any) => block.type === 'text')?.text || '';
 
       // Calculate cost (Anthropic pricing)
-      const cost = this.calculateAnthropicCost(model, usage.input_tokens, usage.output_tokens);
+      const cost = this.calculateAnthropicCost(model, totalInputTokens, totalOutputTokens);
+
+      if (toolsUsed.length > 0) {
+        activityMonitor.logActivity('info', `🔧 Tools used: ${toolsUsed.join(', ')} (${toolCallCount} calls)`);
+      }
 
       return {
         content,
@@ -260,19 +474,32 @@ export class ContentGenerationService {
           model,
           provider: 'anthropic',
           tokens: {
-            prompt: usage.input_tokens,
-            completion: usage.output_tokens,
-            total: usage.input_tokens + usage.output_tokens,
+            prompt: totalInputTokens,
+            completion: totalOutputTokens,
+            total: totalInputTokens + totalOutputTokens,
           },
           cost,
           duration: 0,
           timestamp: new Date().toISOString(),
+          toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
+          toolCallCount: toolCallCount > 0 ? toolCallCount : undefined,
         },
       };
 
     } catch (error: any) {
       throw new Error(`Anthropic API error: ${error.message}`);
     }
+  }
+  
+  /**
+   * Convert OpenAI tool format to Anthropic format
+   */
+  private convertToolsToAnthropicFormat(openAITools: any[]): any[] {
+    return openAITools.map((tool: any) => ({
+      name: tool.function.name,
+      description: tool.function.description,
+      input_schema: tool.function.parameters,
+    }));
   }
 
   /**

@@ -2,18 +2,22 @@ import { useState } from "react";
 
 const navigation = [
   { id: 'overview', name: 'Overview', icon: 'fas fa-chart-line' },
-  { id: 'horoscopes', name: 'Horoscopes', icon: 'fas fa-star' },
   { id: 'generation', name: 'AI Content Generation', icon: 'fas fa-robot' },
   { id: 'content-config', name: 'Content Templates', icon: 'fas fa-file-text' },
   { id: 'data-sources', name: 'Data Sources', icon: 'fas fa-database' },
   { id: 'output-config', name: 'Output Channels', icon: 'fas fa-share-alt' },
+  { id: 'reviews', name: 'Review Queue', icon: 'fas fa-tasks' },
   { id: 'schedule', name: 'Schedule Manager', icon: 'fas fa-calendar-alt' },
   { id: 'queue', name: 'Queue Monitor', icon: 'fas fa-clock' },
   { id: 'logs', name: 'System Logs', icon: 'fas fa-file-alt' },
-  { id: 'license', name: 'License Management', icon: 'fas fa-id-card' },
+  { id: 'credentials', name: 'Credentials', icon: 'fas fa-key' },
+  { id: 'agent-config', name: 'AI Agent Config', icon: 'fas fa-brain' },
+  { id: 'sms-commands', name: 'SMS Commands', icon: 'fas fa-mobile-alt' },
+  { id: 'testing', name: 'Testing & Logs', icon: 'fas fa-vial' },
+  { id: 'configuration', name: 'Environment', icon: 'fas fa-cog' },
+  { id: 'license', name: 'License', icon: 'fas fa-id-card' },
   { id: 'ollama', name: 'Ollama Setup', icon: 'fas fa-server' },
-  { id: 'api-settings', name: 'API Settings', icon: 'fas fa-key' },
-  { id: 'configuration', name: 'System Settings', icon: 'fas fa-cog' },
+  { id: 'api-settings', name: 'API Keys', icon: 'fas fa-code' },
 ];
 
 interface SidebarProps {

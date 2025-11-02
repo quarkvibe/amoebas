@@ -24,6 +24,12 @@ import { useWebSocketContext } from "@/contexts/WebSocketContext";
 import SystemHealthDashboard from "@/components/dashboard/SystemHealthDashboard";
 import LicenseManagement from "@/components/dashboard/LicenseManagement";
 import OllamaSetup from "@/components/dashboard/OllamaSetup";
+import ReviewQueue from "@/components/dashboard/ReviewQueue";
+import CredentialsManager from "@/components/dashboard/CredentialsManager";
+import EnvironmentManager from "@/components/dashboard/EnvironmentManager";
+import AgentConfigurator from "@/components/dashboard/AgentConfigurator";
+import SMSCommands from "@/components/dashboard/SMSCommands";
+import SystemTesting from "@/components/dashboard/SystemTesting";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -113,22 +119,25 @@ export default function Dashboard() {
       case "api-settings":
         return <ApiSettings />;
       case "configuration":
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <i className="fas fa-cog text-primary"></i>
-              System Settings
-            </h2>
-            <p className="text-muted-foreground">
-              Configure system settings and service parameters.
-            </p>
-            {/* Future system configuration components will go here */}
-            <div className="text-center py-12 text-muted-foreground">
-              <i className="fas fa-cog text-4xl mb-4"></i>
-              <p>System settings interface coming soon...</p>
-            </div>
-          </div>
-        );
+      case "settings":
+        return <EnvironmentManager />;
+      case "ai-credentials":
+      case "email-credentials":
+      case "phone-credentials":
+      case "credentials":
+        return <CredentialsManager />;
+      case "agent-config":
+      case "agent-configurator":
+        return <AgentConfigurator />;
+      case "reviews":
+      case "review-queue":
+        return <ReviewQueue />;
+      case "sms-commands":
+      case "remote-control":
+        return <SMSCommands />;
+      case "testing":
+      case "tests":
+        return <SystemTesting />;
       case "license":
         return <LicenseManagement />;
       case "ollama":
