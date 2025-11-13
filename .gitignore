@@ -36,6 +36,7 @@ amoeba.log
 # Database
 *.db
 *.sqlite
+amoeba.db
 
 # Temporary files
 tmp/
@@ -61,26 +62,50 @@ landing/.next/
 landing/out/
 landing/.turbo/
 
-# Ephemeris data (removed - no longer needed)
-ephemeris_data/
-
 # Attached assets (temporary)
 attached_assets/
 
 # ==============================================================================
-# DEVELOPMENT DOCS (Keep private - not for public repo)
+# DEVELOPMENT/WORKING DOCUMENTS (Not for public repo)
 # ==============================================================================
 
-# Session notes (development logs)
-docs/session-notes/
+# Session notes
+SESSION_*.md
+FINAL_SESSION_*.md
+TODAYS_*.md
+BUILD_STATUS.md
+TYPESCRIPT_*.md
 
-# Internal analysis (working documents)
-docs/analysis/
+# Reviews & assessments
+CRITICAL_REVIEW.md
+HONEST_ASSESSMENT.md
+*_REVIEW*.md
+*_ASSESSMENT*.md
 
-# Implementation details (too technical for public)
-docs/implementation/
+# Implementation details
+*_IMPLEMENTATION.md
+*_ARCHITECTURE.md
+SYSTEM_INTERACTIONS_*.md
+STORAGE_ARCHITECTURE.md
+REPRODUCTION_ARCHITECTURE.md
+SELF_PRESERVATION_*.md
+SELF_MODIFYING_*.md
+WEB_MONITORING_*.md
 
-# Status reports (internal use)
-PRE_COMMIT_STATUS.md
-COMPLETE_SESSION_REPORT.md
-READY_TO_COMMIT.md
+# Marketing drafts
+MARKETING_*.md
+HACKER_NEWS_POST.md
+PRODUCT_HUNT_*.md
+
+# Status documents
+*_STATUS.md
+*_COMPLETE.md
+CLI_PARITY_MATRIX.md
+
+# Analysis documents
+*_ANALYSIS*.md
+
+# Guide documents (use docs/ folder instead)
+QUICK_START*.md
+IMMEDIATE_ACTION*.md
+DEPLOYMENT_GUIDE*.md
