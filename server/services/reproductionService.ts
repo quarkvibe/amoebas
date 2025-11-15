@@ -414,7 +414,7 @@ class ReproductionService extends EventEmitter {
       await this.terminateChildren(children.map(c => c.id));
       
       const duration = Date.now() - startTime;
-      const sequential Estimate = task.items.length * task.estimatedDuration;
+      const sequentialEstimate = task.items.length * task.estimatedDuration;
       const actualEfficiency = (sequentialEstimate - duration) / sequentialEstimate;
       
       activityMonitor.logActivity('success', 
