@@ -91,13 +91,13 @@ class ReviewQueueService {
         contentId: content.id,
         userId: content.userId,
         templateId: content.templateId,
-        templateName: content.templateName,
-        status: 'pending',
+        templateName: content.templateName || 'Unknown',
+        status: 'pending' as const,
         original: content.metadata?.original || content.content,
         processed: content.content,
         metadata: content.reviewMetadata || {},
         submittedAt: content.createdAt,
-      }));
+      })) as ReviewItem[];
     
     return pending;
   }
