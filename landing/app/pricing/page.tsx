@@ -1,61 +1,81 @@
 'use client';
 
-import { Check, Sparkles, Server, Rocket, Building2, ArrowRight } from 'lucide-react';
+import { Check, Github, Zap, Building2, Phone } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Footer from '@/components/Footer';
 import Link from 'next/link';
 
-const managedTiers = [
+const pricingTiers = [
   {
-    name: 'Lite',
-    price: '$15',
-    period: '/month',
-    icon: Sparkles,
-    description: 'Small-scale deployments and development environments',
-    specs: ['1GB RAM', '1 vCPU', '25GB SSD', '1 operator'],
+    name: 'Free',
+    price: '$0',
+    period: 'forever',
+    icon: Github,
+    description: 'Full platform, self-hosted, all features included',
+    cta: 'Start Free',
+    ctaLink: 'https://github.com/quarkvibe/ameoba_v2.0',
+    popular: false,
     features: [
-      'All self-hosted features',
-      'Managed DigitalOcean infrastructure',
-      'Automated backup systems',
-      'Continuous deployment pipeline',
-      'SSL/TLS certificates',
-      'Community support channel',
-      'System status notifications',
-    ],
-  },
-  {
-    name: 'Standard',
-    price: '$30',
-    period: '/month',
-    icon: Server,
-    description: 'Production-grade for operational deployments',
-    specs: ['2GB RAM', '2 vCPU', '50GB SSD', '5 operators'],
-    popular: true,
-    features: [
-      'All Lite tier features',
-      '2x computational capacity',
-      'Priority support queue',
-      'Custom domain configuration',
-      'Daily automated backups',
-      'Performance monitoring suite',
-      '99.9% availability SLA',
+      'Complete AI content generation',
+      'Multi-channel delivery (email, SMS, voice, webhooks)',
+      'Data source integration (RSS, APIs, web)',
+      'Scheduled automation (cron jobs)',
+      'Review workflow & quality pipeline',
+      'SMS command interface',
+      'BYOK (bring your own API keys)',
+      'Self-hosted on your server',
+      'CLI with 60+ commands',
+      'Full dashboard UI',
+      'Open source (MIT license)',
+      'Commercial use allowed',
+      'Community support (GitHub, Discord)',
+      'No feature restrictions',
+      'No usage limits',
     ],
   },
   {
     name: 'Pro',
-    price: '$60',
+    price: '$29',
     period: '/month',
-    icon: Rocket,
-    description: 'High-throughput content generation workloads',
-    specs: ['4GB RAM', '4 vCPU', '100GB SSD', 'Unlimited operators'],
+    icon: Zap,
+    description: 'For teams who need support and early access',
+    cta: 'Subscribe to Pro',
+    ctaLink: '/subscribe?tier=pro',
+    popular: true,
+    yearlyPrice: '$290/year',
+    yearlySavings: 'Save $58',
     features: [
-      'All Standard tier features',
-      '4x computational capacity',
-      'Priority support (4h SLA)',
-      'Advanced telemetry',
-      'Configurable backup schedules',
-      'Dedicated resource allocation',
-      'White-label deployment',
+      'Everything in Free, plus:',
+      '✨ Priority email support (24-hour response)',
+      '✨ Early access to new features (1 month ahead)',
+      '✨ Private Discord server',
+      '✨ Vote on roadmap & feature requests',
+      '✨ Remove "Powered by Amoeba" footer',
+      '✨ Monthly office hours with founders',
+      '✨ Access to premium templates',
+    ],
+  },
+  {
+    name: 'Business',
+    price: '$99',
+    period: '/month',
+    icon: Building2,
+    description: 'For agencies and serious businesses',
+    cta: 'Subscribe to Business',
+    ctaLink: '/subscribe?tier=business',
+    popular: false,
+    yearlyPrice: '$990/year',
+    yearlySavings: 'Save $198',
+    features: [
+      'Everything in Pro, plus:',
+      '🏢 White-label ready (remove all Amoeba branding)',
+      '🏢 SLA with 4-hour response time',
+      '🏢 Multi-instance deployment support',
+      '🏢 Priority bug fixes',
+      '🏢 Quarterly strategy calls',
+      '🏢 Custom feature prioritization',
+      '🏢 Dedicated account manager',
+      '🏢 Reseller/agency licensing',
     ],
   },
   {
@@ -63,16 +83,20 @@ const managedTiers = [
     price: 'Custom',
     period: '',
     icon: Building2,
-    description: 'Mission-critical deployments with dedicated infrastructure',
-    specs: ['Custom allocation', 'Dedicated infrastructure', 'Custom SLA'],
+    description: 'For large organizations with special requirements',
+    cta: 'Contact Sales',
+    ctaLink: 'mailto:enterprise@quarkvibe.com',
+    popular: false,
     features: [
-      'All Pro tier features',
-      'Dedicated account management',
-      'Bespoke deployment architecture',
-      'Air-gapped on-premise option',
-      'Custom integration development',
-      'Technical training program',
-      'Enterprise licensing agreements',
+      'Everything in Business, plus:',
+      '🏆 Dedicated support engineer',
+      '🏆 Custom feature development',
+      '🏆 On-premise deployment assistance',
+      '🏆 Training & onboarding for team',
+      '🏆 Legal agreements (BAA, DPA, MSA)',
+      '🏆 99.9% uptime SLA',
+      '🏆 Security audits & compliance',
+      '🏆 Priority everything',
     ],
   },
 ];
@@ -82,250 +106,419 @@ export default function PricingPage() {
     <main className="min-h-screen bg-dark-darker">
       {/* Hero Section */}
       <section className="pt-24 pb-12 bg-gradient-to-b from-dark-darker to-dark relative overflow-hidden">
-        {/* Microscope grid overlay */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(20,184,166,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-dark-card/30 border border-primary/20 mb-6">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-glow" />
-            <span className="text-sm text-text-secondary font-medium tracking-wide">LICENSING & DEPLOYMENT OPTIONS</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            <span className="text-sm text-text-secondary font-medium tracking-wide">TRANSPARENT PRICING</span>
           </div>
           
           <h1 className="text-5xl sm:text-6xl font-bold text-text-primary mb-6">
-            Enterprise Licensing
+            Start Free. Upgrade When Ready.
           </h1>
-          <p className="text-xl text-text-secondary max-w-3xl mx-auto mb-4">
-            Transparent pricing. No hidden costs. Professional-grade platform at an accessible price point.
+          <p className="text-xl text-text-secondary max-w-3xl mx-auto mb-8">
+            Full platform is open source and free forever. Pay only if you need priority support, white-label, or SLA.
           </p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-dark-card/50 border border-amoeba/30 backdrop-blur-sm">
-            <span className="text-2xl">🦕</span>
-            <span className="text-xl font-bold text-amoeba">$3.50</span>
-            <span className="text-text-muted">Lifetime License</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Self-Hosted Section */}
-      <section className="py-16 bg-dark">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative">
-            {/* Popular Badge */}
-            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 z-10">
-              <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-gradient-primary text-white text-sm font-bold shadow-lg shadow-primary/30">
-                <div className="w-1.5 h-1.5 rounded-full bg-white animate-glow" />
-                RECOMMENDED
-              </div>
+          
+          <div className="flex items-center justify-center gap-4 text-sm text-text-secondary">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-primary" />
+              <span>No vendor lock-in</span>
             </div>
-
-            <div className="p-12 rounded-2xl bg-dark-card/50 backdrop-blur-sm border-2 border-primary/30 shadow-2xl shadow-primary/10 hover:shadow-primary/20 transition-all">
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 mb-4">
-                  <span className="text-xs font-medium text-primary tracking-wider">ON-PREMISE DEPLOYMENT</span>
-                </div>
-                <h2 className="text-3xl font-bold text-text-primary mb-3">Lifetime License</h2>
-                <div className="flex items-baseline justify-center gap-3 mb-2">
-                  <span className="text-7xl font-bold bg-gradient-amoeba bg-clip-text text-transparent">$3.50</span>
-                  <span className="text-text-muted text-xl">USD</span>
-                </div>
-                <p className="text-base text-text-secondary">Single payment • Perpetual license • Device-locked</p>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-8 mb-8">
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-1 h-1 rounded-full bg-primary" />
-                    <h3 className="text-sm font-semibold text-text-primary tracking-wide uppercase">Core Platform</h3>
-                  </div>
-                  <ul className="space-y-2.5">
-                    {[
-                      'Unlimited content generation',
-                      'Unlimited templates & workflows',
-                      'Multi-model architecture',
-                      'OpenAI, Anthropic, Cohere',
-                      'Ollama on-premise support',
-                      'Enterprise email & webhook',
-                    ].map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                        <span className="text-sm text-text-secondary">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-1 h-1 rounded-full bg-accent" />
-                    <h3 className="text-sm font-semibold text-text-primary tracking-wide uppercase">Advanced Features</h3>
-                  </div>
-                  <ul className="space-y-2.5">
-                    {[
-                      'Cron-based automation',
-                      'AI Agent orchestration',
-                      'Real-time analytics',
-                      'CLI & REST API',
-                      'AES-256-GCM encryption',
-                      'Community support',
-                      'Lifetime updates',
-                      'Zero recurring costs',
-                    ].map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <Check className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
-                        <span className="text-sm text-text-secondary">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/checkout/license">
-                  <Button size="lg" className="group min-w-[220px]">
-                    Acquire License - $3.50
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-                <Link href="/docs/getting-started">
-                  <Button variant="outline" size="lg" className="min-w-[220px]">
-                    Technical Documentation
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-primary/20">
-                <p className="text-center text-text-muted text-sm">
-                  <span className="font-mono bg-dark-card/50 px-2 py-1 rounded border border-primary/20">TREEFIDDY</span>
-                  <span className="mx-2">•</span>
-                  <span>Early access program</span>
-                </p>
-              </div>
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-primary" />
+              <span>Cancel anytime</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-primary" />
+              <span>14-day money-back guarantee</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Managed Hosting Section */}
-      <section className="py-16 bg-dark-darker relative overflow-hidden">
-        {/* Subtle background pattern */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(20,184,166,0.02)_1px,transparent_1px)] bg-[size:40px_40px]" />
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-dark-card/30 border border-accent/20 mb-6">
-              <div className="w-1.5 h-1.5 rounded-full bg-accent animate-glow" />
-              <span className="text-sm text-text-secondary font-medium tracking-wide">MANAGED INFRASTRUCTURE</span>
-            </div>
-            <h2 className="text-4xl font-bold text-text-primary mb-4">
-              Hosted Deployment Tiers
-            </h2>
-            <p className="text-xl text-text-secondary max-w-2xl mx-auto">
-              Enterprise-managed infrastructure. Zero operational overhead.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {managedTiers.map((tier) => {
-              const Icon = tier.icon;
-              return (
-                <div
-                  key={tier.name}
-                  className={`p-6 rounded-xl bg-dark-card/50 backdrop-blur-sm border ${
-                    tier.popular ? 'border-primary/40 shadow-lg shadow-primary/10' : 'border-primary/20'
-                  } hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 flex flex-col`}
-                >
-                  {tier.popular && (
-                    <div className="mb-4">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-primary text-white text-xs font-semibold">
-                        <div className="w-1 h-1 rounded-full bg-white animate-glow" />
-                        RECOMMENDED
-                      </div>
+      {/* Pricing Tiers */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {pricingTiers.map((tier) => (
+              <div
+                key={tier.name}
+                className={`relative rounded-2xl p-8 ${
+                  tier.popular
+                    ? 'bg-gradient-to-b from-primary/10 to-dark-card border-2 border-primary'
+                    : 'bg-dark-card border border-border'
+                }`}
+              >
+                {tier.popular && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-dark-darker text-xs font-bold rounded-full">
+                    MOST POPULAR
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`p-2 rounded-lg ${tier.popular ? 'bg-primary/20' : 'bg-primary/10'}`}>
+                    <tier.icon className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-text-primary">{tier.name}</h3>
+                </div>
+                
+                <div className="mb-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-5xl font-bold text-text-primary">{tier.price}</span>
+                    {tier.period && <span className="text-text-secondary">{tier.period}</span>}
+                  </div>
+                  {tier.yearlyPrice && (
+                    <div className="mt-2 text-sm text-primary">
+                      {tier.yearlyPrice} • {tier.yearlySavings}
                     </div>
                   )}
-
-                  <div className="mb-4">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mb-3">
-                      <Icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-bold text-text-primary mb-1.5">{tier.name}</h3>
-                    <p className="text-xs text-text-muted mb-4 leading-relaxed">{tier.description}</p>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-3xl font-bold text-text-primary">{tier.price}</span>
-                      <span className="text-sm text-text-muted">{tier.period}</span>
-                    </div>
-                  </div>
-
-                  <div className="mb-4 pb-4 border-b border-primary/20">
-                    {tier.specs.map((spec, i) => (
-                      <p key={i} className="text-xs text-text-muted flex items-center gap-1.5">
-                        <span className="w-1 h-1 rounded-full bg-accent/50" />
-                        {spec}
-                      </p>
-                    ))}
-                  </div>
-
-                  <ul className="space-y-2 mb-6 flex-1">
-                    {tier.features.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                        <span className="text-text-secondary">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Link href={tier.name === 'Business' ? 'mailto:sales@ameoba.org' : `/checkout/subscription?tier=${tier.name.toLowerCase()}`}>
-                    <Button
-                      variant={tier.popular ? 'primary' : 'outline'}
-                      className="w-full"
-                    >
-                      {tier.name === 'Business' ? 'Contact Sales' : 'Get Started'}
-                    </Button>
-                  </Link>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-
-      {/* FAQ Section */}
-      <section className="py-16 bg-dark-darker">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-text-primary text-center mb-12">
-            Frequently Asked Questions
-          </h2>
-          <div className="space-y-6">
-            {[
-              {
-                q: 'What does "tree fiddy" mean?',
-                a: "It's $3.50 - a South Park reference. We believe great software shouldn't cost a fortune.",
-              },
-              {
-                q: 'Can I really use it forever for $3.50?',
-                a: 'Yes! One-time payment, lifetime license, per device. No monthly fees, no hidden costs. All features included.',
-              },
-              {
-                q: 'What happens to my license if I upgrade my machine?',
-                a: 'You can deactivate your license and activate it on a new device anytime. Self-service, instant.',
-              },
-              {
-                q: 'Do I need to bring my own API keys?',
-                a: 'Yes, for cloud AI models (OpenAI, Anthropic, Cohere). Or use Ollama to run models locally on your own hardware with no API costs.',
-              },
-              {
-                q: 'Can I get a refund?',
-                a: '30-day money-back guarantee, no questions asked. Just email support@ameoba.org.',
-              },
-              {
-                q: 'What AI models are supported?',
-                a: 'OpenAI (GPT-4, GPT-3.5), Anthropic (Claude), Cohere, and any Ollama model (Llama 3, Mistral, Phi-3, etc.).',
-              },
-            ].map((faq, i) => (
-              <div key={i} className="p-6 rounded-lg bg-dark-card border border-dark-border">
-                <h3 className="text-lg font-semibold text-text-primary mb-2">{faq.q}</h3>
-                <p className="text-text-secondary">{faq.a}</p>
+                
+                <p className="text-sm text-text-secondary mb-6">
+                  {tier.description}
+                </p>
+                
+                <Link href={tier.ctaLink}>
+                  <Button
+                    variant={tier.popular ? 'primary' : 'secondary'}
+                    className="w-full mb-6"
+                  >
+                    {tier.cta}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+                
+                <div className="space-y-3">
+                  {tier.features.map((feature, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      {feature.startsWith('✨') || feature.startsWith('🏢') || feature.startsWith('🏆') ? (
+                        <>
+                          <span className="text-base">{feature.slice(0, 2)}</span>
+                          <span className="text-sm text-text-secondary flex-1">{feature.slice(3)}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <span className="text-sm text-text-secondary">{feature}</span>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-dark">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-text-primary mb-12 text-center">
+            Frequently Asked Questions
+          </h2>
+          
+          <div className="space-y-6">
+            <div className="bg-dark-card rounded-xl p-6 border border-border">
+              <h3 className="text-lg font-semibold text-text-primary mb-2">
+                Is the free tier really unlimited?
+              </h3>
+              <p className="text-text-secondary">
+                Yes! The free tier includes all features with no restrictions. You self-host on your server and use your own API keys (BYOK), so there are no usage limits. The paid tiers are for support and services, not features.
+              </p>
+            </div>
+            
+            <div className="bg-dark-card rounded-xl p-6 border border-border">
+              <h3 className="text-lg font-semibold text-text-primary mb-2">
+                What do I get with paid tiers?
+              </h3>
+              <p className="text-text-secondary">
+                Paid tiers give you priority support, early access to new features, white-label options, and SLA guarantees. The platform features are the same - you're paying for support and services, not functionality.
+              </p>
+            </div>
+            
+            <div className="bg-dark-card rounded-xl p-6 border border-border">
+              <h3 className="text-lg font-semibold text-text-primary mb-2">
+                What are the actual costs to run Amoeba?
+              </h3>
+              <p className="text-text-secondary">
+                Since Amoeba uses BYOK (Bring Your Own Keys), you pay API providers directly: ~$0.001-0.01 per AI generation (OpenAI/Anthropic), ~$0.0075 per SMS (Twilio), ~$0.0001 per email (SendGrid). Plus your server costs (~$5-20/month for a basic VPS). Total: ~$20-50/month for typical usage.
+              </p>
+            </div>
+            
+            <div className="bg-dark-card rounded-xl p-6 border border-border">
+              <h3 className="text-lg font-semibold text-text-primary mb-2">
+                Can I cancel my subscription anytime?
+              </h3>
+              <p className="text-text-secondary">
+                Yes! Cancel anytime, no questions asked. Your platform will continue working (it's self-hosted), you'll just lose access to priority support and premium features. We also offer a 14-day money-back guarantee.
+              </p>
+            </div>
+            
+            <div className="bg-dark-card rounded-xl p-6 border border-border">
+              <h3 className="text-lg font-semibold text-text-primary mb-2">
+                What payment methods do you accept?
+              </h3>
+              <p className="text-text-secondary">
+                We use Stripe for all payments. Accepted: all major credit cards, debit cards, and digital wallets (Apple Pay, Google Pay). For Enterprise plans, we can arrange invoicing.
+              </p>
+            </div>
+            
+            <div className="bg-dark-card rounded-xl p-6 border border-border">
+              <h3 className="text-lg font-semibold text-text-primary mb-2">
+                Do you offer refunds?
+              </h3>
+              <p className="text-text-secondary">
+                Yes! We offer a 14-day money-back guarantee on all paid plans. If you're not satisfied within the first 14 days, we'll refund your subscription payment, no questions asked.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Comparison Table */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl font-bold text-text-primary mb-12 text-center">
+            Compare All Features
+          </h2>
+          
+          <div className="bg-dark-card rounded-xl border border-border overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left p-4 text-text-secondary font-medium">Feature</th>
+                  <th className="text-center p-4 text-text-secondary font-medium">Free</th>
+                  <th className="text-center p-4 text-primary font-medium">Pro</th>
+                  <th className="text-center p-4 text-text-secondary font-medium">Business</th>
+                  <th className="text-center p-4 text-text-secondary font-medium">Enterprise</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                <tr>
+                  <td className="p-4 text-text-primary">AI Content Generation</td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="p-4 text-text-primary">Multi-Channel Delivery</td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="p-4 text-text-primary">SMS Commands</td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="p-4 text-text-primary">Community Support</td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                </tr>
+                <tr className="bg-primary/5">
+                  <td className="p-4 text-text-primary font-medium">Priority Email Support</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                </tr>
+                <tr className="bg-primary/5">
+                  <td className="p-4 text-text-primary font-medium">Early Access to Features</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                </tr>
+                <tr className="bg-primary/5">
+                  <td className="p-4 text-text-primary font-medium">Private Discord</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="p-4 text-text-primary font-medium">White-Label (Remove Branding)</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="p-4 text-text-primary font-medium">SLA (4-hour response)</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="p-4 text-text-primary font-medium">Dedicated Support Engineer</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="p-4 text-text-primary font-medium">Custom Development</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4 text-text-secondary">—</td>
+                  <td className="text-center p-4"><Check className="w-5 h-5 text-primary mx-auto" /></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* Add-On Services */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-dark">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl font-bold text-text-primary mb-12 text-center">
+            Professional Services
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-dark-card rounded-xl p-6 border border-border">
+              <h3 className="text-xl font-bold text-text-primary mb-2">Setup Service</h3>
+              <div className="text-3xl font-bold text-primary mb-4">$499</div>
+              <p className="text-text-secondary mb-4">
+                We set up Amoeba for you on your server, including database, SSL, and initial configuration.
+              </p>
+              <ul className="space-y-2 text-sm text-text-secondary">
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Server setup & configuration
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Database setup
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  SSL/domain configuration
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Initial template creation
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  1-hour training session
+                </li>
+              </ul>
+            </div>
+            
+            <div className="bg-dark-card rounded-xl p-6 border border-border">
+              <h3 className="text-xl font-bold text-text-primary mb-2">Custom Development</h3>
+              <div className="text-3xl font-bold text-primary mb-4">$150<span className="text-lg">/hour</span></div>
+              <p className="text-text-secondary mb-4">
+                Need custom features, integrations, or modifications? We'll build it for you.
+              </p>
+              <ul className="space-y-2 text-sm text-text-secondary">
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Custom integrations
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Feature development
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Workflow automation
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  API connectors
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Priority delivery
+                </li>
+              </ul>
+            </div>
+            
+            <div className="bg-dark-card rounded-xl p-6 border border-border">
+              <h3 className="text-xl font-bold text-text-primary mb-2">Training & Consulting</h3>
+              <div className="text-3xl font-bold text-primary mb-4">$1,000<span className="text-lg">/day</span></div>
+              <p className="text-text-secondary mb-4">
+                Full-day training for your team or consulting on architecture and best practices.
+              </p>
+              <ul className="space-y-2 text-sm text-text-secondary">
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Team training (up to 10 people)
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Architecture review
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Workflow optimization
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Best practices guide
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  Q&A session
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="mt-8 text-center">
+            <Link href="mailto:sales@quarkvibe.com">
+              <Button variant="secondary" size="large">
+                <Phone className="w-4 h-4 mr-2" />
+                Contact Sales for Custom Needs
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-dark-darker to-dark relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.05)_1px,transparent_1px)] bg-[size:40px_40px]" />
+        
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <h2 className="text-4xl font-bold text-text-primary mb-6">
+            Ready to Get Started?
+          </h2>
+          <p className="text-xl text-text-secondary mb-8">
+            Start with the free tier. Upgrade when you need support.
+          </p>
+          <div className="flex gap-4 justify-center flex-wrap">
+            <Link href="https://github.com/quarkvibe/ameoba_v2.0">
+              <Button variant="primary" size="large">
+                <Github className="w-5 h-5 mr-2" />
+                Start Free (GitHub)
+              </Button>
+            </Link>
+            <Link href="/subscribe?tier=pro">
+              <Button variant="secondary" size="large">
+                <Zap className="w-5 h-5 mr-2" />
+                Subscribe to Pro ($29/mo)
+              </Button>
+            </Link>
+          </div>
+          
+          <p className="text-sm text-text-secondary mt-6">
+            No credit card required for free tier • 14-day money-back guarantee on paid plans
+          </p>
         </div>
       </section>
 
@@ -333,4 +526,3 @@ export default function PricingPage() {
     </main>
   );
 }
-

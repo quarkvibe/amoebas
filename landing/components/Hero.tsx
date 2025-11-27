@@ -32,32 +32,33 @@ export default function Hero() {
         {/* Main Heading */}
         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 animate-fade-in">
           <span className="text-text-primary">
-            Intelligent Content
+            AI Content Platform
           </span>
           <br />
           <span className="bg-gradient-primary bg-clip-text text-transparent">
-            Generation Platform
+            You Actually Own
           </span>
         </h1>
 
         {/* Subheading */}
         <p className="text-xl sm:text-2xl text-text-secondary max-w-3xl mx-auto mb-8 animate-slide-up leading-relaxed">
-          Transform AI models into production-ready microservices with clinical precision.
+          Generate with AI, deliver anywhere, control from your phone.
           <br />
-          <span className="text-primary font-medium">One-time license. Lifetime access. Complete control.</span>
+          <span className="text-primary font-medium">Free to self-host. Paid support available.</span>
         </p>
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-          <Link href="/pricing">
+          <Link href="https://github.com/quarkvibe/ameoba_v2.0">
             <Button size="lg" className="group">
-              Get Started for $3.50
+              <Sparkles className="w-5 h-5 mr-2" />
+              Start Free
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
-          <Link href="/docs">
+          <Link href="/pricing">
             <Button variant="outline" size="lg">
-              View Documentation
+              View Pricing
             </Button>
           </Link>
         </div>
@@ -76,9 +77,9 @@ export default function Hero() {
             <div className="w-1.5 h-1.5 rounded-full bg-primary" />
             <span>Multi-Model Support</span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-card/30 border border-amoeba/20">
-            <span className="text-xl">🦕</span>
-            <span className="font-semibold text-amoeba">$3.50</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-card/30 border border-primary/20">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+            <span>Open Source (MIT)</span>
           </div>
         </div>
 

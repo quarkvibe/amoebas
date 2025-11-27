@@ -114,23 +114,44 @@ Fetch data from anywhere:
 
 ## 💰 Pricing
 
-**Platform**: FREE (Open Source, MIT License)
+### Platform Tiers
 
-**Your Infrastructure**:
-- Dev: $0 (SQLite is free)
-- Production: $0-10/month (Neon.tech/Supabase free tier)
+**Free (Open Source)**:
+- Price: **$0 forever**
+- Features: Complete platform, all features
+- Support: Community (GitHub, Discord)
+- Perfect for: Individuals, hobbyists, trying it out
 
-**Your API Costs** (pay providers directly):
+**Pro**:
+- Price: **$29/month** or $290/year (save $58)
+- Features: Everything in Free + Priority support, early access, private Discord
+- Perfect for: Solo developers, small teams, content creators
+
+**Business**:
+- Price: **$99/month** or $990/year (save $198)
+- Features: Everything in Pro + White-label, SLA, multi-instance
+- Perfect for: Agencies, serious businesses, resellers
+
+**Enterprise**:
+- Price: **Custom** (starting at $500/month)
+- Features: Everything + Dedicated support, custom development
+- Perfect for: Large organizations, special requirements
+
+### Your Costs (With Free Tier)
+
+**Infrastructure**:
+- Server: $5-20/month (DigitalOcean, AWS, etc.)
+- Database: $0-10/month (Neon.tech free tier works great)
+
+**API Costs** (BYOK - pay providers directly):
 - AI: $0.001-0.01 per generation (OpenAI/Anthropic)
 - Email: $0.0001 per email (SendGrid)
 - SMS: $0.0075 per message (Twilio)
 - Voice: $0.013 per minute (Twilio)
 
-**Amoeba License** (optional):
-- Self-Host: $3.50 one-time (lifetime)
-- Pro: $29/month (includes support)
+**Total for most users**: $20-50/month (infrastructure + API costs)
 
-**Total monthly cost for most users**: Under $50
+**Add paid tier if you want**: +$29-99/month for support & premium features
 
 ---
 

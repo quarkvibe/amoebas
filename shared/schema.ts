@@ -34,6 +34,16 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  
+  // Subscription fields (v2.0 - hybrid freemium model)
+  subscriptionTier: varchar("subscription_tier", { length: 50 }).default('free'), // 'free', 'pro', 'business', 'enterprise'
+  subscriptionStatus: varchar("subscription_status", { length: 50 }).default('active'), // 'active', 'canceled', 'past_due', 'trialing', 'paused'
+  stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+  subscriptionStartDate: timestamp("subscription_start_date"),
+  subscriptionEndDate: timestamp("subscription_end_date"),
+  subscriptionCanceledAt: timestamp("subscription_canceled_at"),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

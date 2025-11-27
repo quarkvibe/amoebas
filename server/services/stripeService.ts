@@ -247,7 +247,17 @@ export class StripeService {
     const priceId = subscription.items.data[0]?.price.id;
     const tier = this.getTierFromPriceId(priceId);
 
-    // Create or update subscription in database
+    // Update user's subscription tier directly
+    await storage.updateUser(customer.userId, {
+      subscriptionTier: tier as any,
+      subscriptionStatus: subscription.status,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: subscription.id,
+      subscriptionStartDate: new Date(subscription.current_period_start * 1000),
+      subscriptionEndDate: new Date(subscription.current_period_end * 1000),
+    });
+
+    // Also create or update subscription in subscriptions table (for managed hosting tracking)
     await storage.upsertSubscription({
       userId: customer.userId,
       stripeSubscriptionId: subscription.id,
@@ -274,11 +284,17 @@ export class StripeService {
       return;
     }
 
-    // Mark subscription as canceled
+    // Downgrade user to free tier
+    await storage.updateUser(customer.userId, {
+      subscriptionTier: 'free' as any,
+      subscriptionStatus: 'canceled',
+      subscriptionCanceledAt: new Date(),
+    });
+
+    // Mark subscription as canceled in subscriptions table
     await storage.updateSubscriptionStatus(subscription.id, 'canceled');
 
-    // Optionally: Mark managed instances as stopped/scheduled for deletion
-    console.log(`Subscription canceled for user ${customer.userId}`);
+    console.log(`Subscription canceled for user ${customer.userId} - downgraded to free tier`);
   }
 
   /**
