@@ -170,6 +170,7 @@ export const aiCredentials = pgTable("ai_credentials", {
   name: varchar("name", { length: 200 }).notNull(), // user-friendly name
   apiKey: text("api_key").notNull(), // ENCRYPTED - decrypted only in memory when needed
   additionalConfig: jsonb("additional_config"), // org ID, project ID, etc. (public data)
+  usage: varchar("usage", { length: 50 }).default('all'), // 'content', 'coding', 'all'
   isDefault: boolean("is_default").default(false),
   isActive: boolean("is_active").default(true),
   lastUsed: timestamp("last_used"),
@@ -797,6 +798,75 @@ export const subscriptions = pgTable("subscriptions", {
   index("idx_subscriptions_stripe_id").on(table.stripeSubscriptionId),
   index("idx_subscriptions_status").on(table.status),
 ]);
+
+// =============================================================================
+// AI CODE MODIFICATION & MCP
+// =============================================================================
+
+// Organelles (Safe Zones for AI Code Modification)
+export const organelles = pgTable("organelles", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  path: varchar("path", { length: 500 }).notNull(), // Relative path from project root
+  description: text("description"),
+  permissions: jsonb("permissions").notNull().default(['read', 'write']), // ['read', 'write']
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_organelles_user").on(table.userId),
+]);
+
+// MCP Servers (External Model Context Protocol integrations)
+export const mcpServers = pgTable("mcp_servers", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name", { length: 200 }).notNull(),
+  url: varchar("url", { length: 500 }).notNull(), // WebSocket or SSE URL
+  status: varchar("status", { length: 50 }).default('disconnected'), // 'connected', 'disconnected', 'error'
+  config: jsonb("config"), // Optional configuration
+  isActive: boolean("is_active").default(true),
+  lastConnected: timestamp("last_connected"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_mcp_servers_user").on(table.userId),
+]);
+
+// Relations
+export const organellesRelations = relations(organelles, ({ one }) => ({
+  user: one(users, {
+    fields: [organelles.userId],
+    references: [users.id],
+  }),
+}));
+
+export const mcpServersRelations = relations(mcpServers, ({ one }) => ({
+  user: one(users, {
+    fields: [mcpServers.userId],
+    references: [users.id],
+  }),
+}));
+
+// Insert Schemas
+export const insertOrganelleSchema = createInsertSchema(organelles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMcpServerSchema = createInsertSchema(mcpServers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types
+export type Organelle = typeof organelles.$inferSelect;
+export type InsertOrganelle = z.infer<typeof insertOrganelleSchema>;
+export type McpServer = typeof mcpServers.$inferSelect;
+export type InsertMcpServer = z.infer<typeof insertMcpServerSchema>;
+
 
 // Managed DigitalOcean droplet instances
 export const managedInstances = pgTable("managed_instances", {

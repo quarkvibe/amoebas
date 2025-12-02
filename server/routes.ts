@@ -13,6 +13,9 @@ import {
 // import { queueService } from "./services/queueService"; // REMOVED - bloat
 // import { emailService } from "./services/emailService"; // REMOVED - use deliveryService
 import { aiAgent } from "./services/aiAgent";
+import { codingAgentService } from "./services/codingAgentService";
+import { organelleService } from "./services/organelleService";
+import { mcpService } from "./services/mcpService";
 import { cronService } from "./services/cronService";
 import { integrationService } from "./services/integrationService";
 import { WebSocketServer, WebSocket } from "ws";
@@ -25,12 +28,13 @@ import { dataSourceService } from "./services/dataSourceService";
 import { stripeService } from "./services/stripeService";
 import { licenseService } from "./services/licenseService";
 import { ollamaService } from "./services/ollamaService";
+import { fileService } from "./services/fileService";
 import { validateBody, validateQuery } from "./middleware/validation";
-import { 
-  strictRateLimit, 
-  standardRateLimit, 
+import {
+  strictRateLimit,
+  standardRateLimit,
   generousRateLimit,
-  aiGenerationRateLimit 
+  aiGenerationRateLimit
 } from "./middleware/rateLimiter";
 import {
   activateLicenseSchema,
@@ -46,34 +50,34 @@ import {
 async function requireApiKey(req: any, res: any, next: any, permissions: string[] = []) {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
-        message: "Missing or invalid authorization header. Required format: 'Bearer YOUR_API_KEY'" 
+      return res.status(401).json({
+        message: "Missing or invalid authorization header. Required format: 'Bearer YOUR_API_KEY'"
       });
     }
-    
+
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     const apiKey = await integrationService.validateApiKey(token);
-    
+
     if (!apiKey) {
-      return res.status(401).json({ 
-        message: "Invalid or expired API key" 
+      return res.status(401).json({
+        message: "Invalid or expired API key"
       });
     }
-    
+
     // Check permissions if required
     for (const permission of permissions) {
       if (!integrationService.hasPermission(apiKey, permission)) {
-        return res.status(403).json({ 
-          message: `Insufficient permissions. Required: ${permission}` 
+        return res.status(403).json({
+          message: `Insufficient permissions. Required: ${permission}`
         });
       }
     }
-    
+
     // Add API key info to request
     req.apiKey = apiKey;
-    
+
     // Log API usage
     await integrationService.logApiUsage(
       apiKey.name,
@@ -82,7 +86,7 @@ async function requireApiKey(req: any, res: any, next: any, permissions: string[
       200,
       0 // Response time will be updated later
     );
-    
+
     next();
   } catch (error) {
     console.error('API key validation error:', error);
@@ -93,7 +97,7 @@ async function requireApiKey(req: any, res: any, next: any, permissions: string[
 export async function registerRoutes(app: Express): Promise<Server> {
   // Simple health checks BEFORE auth middleware
   app.get('/healthz', (req, res) => res.status(200).send('OK'));
-  app.get('/readyz', (req, res) => res.status(200).json({status:'ready'}));
+  app.get('/readyz', (req, res) => res.status(200).json({ status: 'ready' }));
 
   // Auth middleware
   await setupAuth(app);
@@ -125,9 +129,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Health check error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         status: "critical",
-        message: "Health check failed" 
+        message: "Health check failed"
       });
     }
   });
@@ -165,19 +169,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // =============================================================================
 
   // =============================================================================
+  // =============================================================================
   // AI AGENT (Auth Required)
   // =============================================================================
+
+  // Coding Agent Chat
+  app.post("/api/agent/coding", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { message, context } = req.body;
+      const response = await codingAgentService.processRequest(userId, message, context);
+      res.json(response);
+    } catch (error: any) {
+      console.error("Error in coding agent:", error);
+      res.status(500).json({ message: error.message || "Failed to process coding request" });
+    }
+  });
+
+  // Organelles Management
+  app.get("/api/organelles", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const organelles = await organelleService.getOrganelles(userId);
+      res.json(organelles);
+    } catch (error) {
+      console.error("Error fetching organelles:", error);
+      res.status(500).json({ message: "Failed to fetch organelles" });
+    }
+  });
+
+  // MCP Servers Management
+  app.get("/api/mcp", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const tools = await mcpService.getTools(userId);
+      res.json({ tools });
+    } catch (error) {
+      console.error("Error fetching MCP tools:", error);
+      res.status(500).json({ message: "Failed to fetch MCP tools" });
+    }
+  });
+
+  // File System API
+  app.get("/api/files", isAuthenticated, async (req: any, res) => {
+    try {
+      const tree = await fileService.getFileTree();
+      res.json(tree);
+    } catch (error) {
+      console.error("Error fetching file tree:", error);
+      res.status(500).json({ message: "Failed to fetch file tree" });
+    }
+  });
+
+  app.get("/api/files/content", isAuthenticated, async (req: any, res) => {
+    try {
+      const { path } = req.query;
+      if (!path || typeof path !== 'string') {
+        return res.status(400).json({ message: "Path is required" });
+      }
+      const content = await fileService.readFile(path);
+      res.json({ content });
+    } catch (error) {
+      console.error("Error reading file:", error);
+      res.status(500).json({ message: "Failed to read file" });
+    }
+  });
 
   // Chat with AI agent
   app.post("/api/agent/chat", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { message } = req.body;
-      
+
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ message: 'Invalid message' });
       }
-      
+
       const response = await aiAgent.processMessage(userId, message);
       res.json(response);
     } catch (error) {
@@ -229,10 +296,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       // Return basic config - can be expanded later
-      res.json({ 
+      res.json({
         version: '2.0.0',
         features: ['content_generation', 'scheduling', 'delivery'],
-        userId 
+        userId
       });
     } catch (error) {
       console.error("Error fetching system config:", error);
@@ -282,15 +349,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/api-keys", isAuthenticated, async (req, res) => {
     try {
       const { name, permissions } = req.body;
-      
+
       if (!name || !permissions || !Array.isArray(permissions)) {
-        return res.status(400).json({ 
-          message: "Name and permissions array are required" 
+        return res.status(400).json({
+          message: "Name and permissions array are required"
         });
       }
 
       const result = await integrationService.generateApiKey(name, permissions);
-      
+
       res.json({
         message: "API key generated successfully",
         apiKey: {
@@ -355,13 +422,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const credentials = await storage.getAiCredentials(userId);
-      
+
       // Don't return the full API key in list view for security
       const safeCredentials = credentials.map(cred => ({
         ...cred,
         apiKey: `${cred.apiKey.substring(0, 8)}...${cred.apiKey.substring(cred.apiKey.length - 4)}`,
       }));
-      
+
       res.json(safeCredentials);
     } catch (error) {
       console.error("Error fetching AI credentials:", error);
@@ -373,7 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const credential = await storage.createAiCredential({ ...req.body, userId });
-      
+
       // Mask the API key in response (show first 8 and last 4 chars)
       res.status(201).json({
         ...credential,
@@ -389,11 +456,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const credential = await storage.getAiCredential(req.params.id, userId);
-      
+
       if (!credential) {
         return res.status(404).json({ message: "AI credential not found" });
       }
-      
+
       // Return full credential (caller has permission)
       res.json(credential);
     } catch (error) {
@@ -406,11 +473,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const credential = await storage.updateAiCredential(req.params.id, userId, req.body);
-      
+
       if (!credential) {
         return res.status(404).json({ message: "AI credential not found" });
       }
-      
+
       res.json({
         ...credential,
         apiKey: `${credential.apiKey.substring(0, 8)}...${credential.apiKey.substring(credential.apiKey.length - 4)}`,
@@ -425,11 +492,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const deleted = await storage.deleteAiCredential(req.params.id, userId);
-      
+
       if (!deleted) {
         return res.status(404).json({ message: "AI credential not found" });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting AI credential:", error);
@@ -442,14 +509,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const credentials = await storage.getEmailServiceCredentials(userId);
-      
+
       // Mask sensitive fields in list view
       const safeCredentials = credentials.map(cred => ({
         ...cred,
         apiKey: cred.apiKey ? `${cred.apiKey.substring(0, 8)}...` : null,
         awsSecretAccessKey: cred.awsSecretAccessKey ? '***HIDDEN***' : null,
       }));
-      
+
       res.json(safeCredentials);
     } catch (error) {
       console.error("Error fetching email credentials:", error);
@@ -461,13 +528,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const credential = await storage.createEmailServiceCredential({ ...req.body, userId });
-      
+
       res.status(201).json({
         ...credential,
         apiKey: credential.apiKey ? `${credential.apiKey.substring(0, 8)}...` : null,
         awsSecretAccessKey: credential.awsSecretAccessKey ? '***HIDDEN***' : null,
-        });
-      } catch (error) {
+      });
+    } catch (error) {
       console.error("Error creating email credential:", error);
       res.status(500).json({ message: "Failed to create email credential" });
     }
@@ -477,11 +544,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const credential = await storage.getEmailServiceCredential(req.params.id, userId);
-      
+
       if (!credential) {
         return res.status(404).json({ message: "Email credential not found" });
       }
-      
+
       // Return full credential (caller has permission)
       res.json(credential);
     } catch (error) {
@@ -494,11 +561,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const credential = await storage.updateEmailServiceCredential(req.params.id, userId, req.body);
-      
+
       if (!credential) {
         return res.status(404).json({ message: "Email credential not found" });
       }
-      
+
       res.json({
         ...credential,
         apiKey: credential.apiKey ? `${credential.apiKey.substring(0, 8)}...` : null,
@@ -514,11 +581,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const deleted = await storage.deleteEmailServiceCredential(req.params.id, userId);
-      
+
       if (!deleted) {
         return res.status(404).json({ message: "Email credential not found" });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting email credential:", error);
@@ -659,7 +726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/datasources/test', isAuthenticated, async (req: any, res) => {
     try {
       const { config } = req.body;
-      
+
       // SSRF Protection - Validate URLs even in stub implementation
       if (config?.endpoint) {
         const url = new URL(config.endpoint);
@@ -668,16 +735,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         // Block common private IP ranges
         const hostname = url.hostname;
-        if (hostname === 'localhost' || hostname === '127.0.0.1' || 
-            hostname.startsWith('192.168.') || hostname.startsWith('10.') ||
-            hostname.startsWith('172.16.') || hostname.startsWith('172.17.') ||
-            hostname.startsWith('172.18.') || hostname.startsWith('172.19.') ||
-            hostname.startsWith('172.20.') || hostname.startsWith('172.21.') ||
-            hostname.startsWith('172.22.') || hostname.startsWith('172.23.') ||
-            hostname.startsWith('172.24.') || hostname.startsWith('172.25.') ||
-            hostname.startsWith('172.26.') || hostname.startsWith('172.27.') ||
-            hostname.startsWith('172.28.') || hostname.startsWith('172.29.') ||
-            hostname.startsWith('172.30.') || hostname.startsWith('172.31.')) {
+        if (hostname === 'localhost' || hostname === '127.0.0.1' ||
+          hostname.startsWith('192.168.') || hostname.startsWith('10.') ||
+          hostname.startsWith('172.16.') || hostname.startsWith('172.17.') ||
+          hostname.startsWith('172.18.') || hostname.startsWith('172.19.') ||
+          hostname.startsWith('172.20.') || hostname.startsWith('172.21.') ||
+          hostname.startsWith('172.22.') || hostname.startsWith('172.23.') ||
+          hostname.startsWith('172.24.') || hostname.startsWith('172.25.') ||
+          hostname.startsWith('172.26.') || hostname.startsWith('172.27.') ||
+          hostname.startsWith('172.28.') || hostname.startsWith('172.29.') ||
+          hostname.startsWith('172.30.') || hostname.startsWith('172.31.')) {
           return res.status(400).json({ message: 'Private IP addresses are not allowed' });
         }
       }
@@ -692,13 +759,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         warning: 'This is a stub implementation. Real data source testing is not yet implemented.',
         mock: true
       };
-      
+
       res.json(testResult);
     } catch (error) {
       console.error('Error testing data source:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -764,7 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { id } = req.params;
       const { testData } = req.body;
-      
+
       const channel = await storage.getOutputChannel(id, userId);
       if (!channel) {
         return res.status(404).json({ message: 'Output channel not found' });
@@ -778,7 +845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         warning: 'This is a stub implementation. Real output channel testing is not yet implemented.',
         mock: true
       };
-      
+
       res.json(testResult);
     } catch (error) {
       console.error('Error testing output channel:', error);
@@ -870,7 +937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { id } = req.params;
-      
+
       const job = await storage.getScheduledJob(id, userId);
       if (!job) {
         return res.status(404).json({ message: 'Scheduled job not found' });
@@ -878,7 +945,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // STUB IMPLEMENTATION - Simulates job execution without real processing
       await storage.updateScheduledJobStatus(id, 'running');
-      
+
       // Simulate job execution
       setTimeout(async () => {
         try {
@@ -887,9 +954,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateScheduledJobStatus(id, 'error', error instanceof Error ? error.message : 'Unknown error');
         }
       }, 1000);
-      
-      res.json({ 
-        message: 'Job execution triggered (MOCK)', 
+
+      res.json({
+        message: 'Job execution triggered (MOCK)',
         jobId: id,
         warning: 'This is a stub implementation. Real job execution with AI content generation is not yet implemented.',
         mock: true
@@ -917,7 +984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { templateId } = req.body;
-      
+
       // Verify template exists and belongs to user
       const template = await storage.getContentTemplate(templateId, userId);
       if (!template) {
@@ -931,7 +998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         variables: req.body.variables || {},
         credentialId: req.body.credentialId,
       });
-      
+
       // Save generated content
       const generatedContent = await storage.createGeneratedContent({
         templateId,
@@ -949,10 +1016,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           templateId,
         });
 
-        return res.json({ 
+        return res.json({
           success: true,
-        contentId: generatedContent.id,
-        templateName: template.name,
+          contentId: generatedContent.id,
+          templateName: template.name,
           tokens: generationResult.metadata.tokens.total,
           cost: generationResult.metadata.cost,
           duration: generationResult.metadata.duration,
@@ -982,11 +1049,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/content/generate-all', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      
+
       // Get all active templates for the user
       const templates = await storage.getContentTemplates(userId);
       const activeTemplates = templates.filter(t => t.isActive);
-      
+
       if (activeTemplates.length === 0) {
         return res.status(400).json({ message: 'No active templates found' });
       }
@@ -1003,20 +1070,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userId,
             variables: req.body.variables || {},
           });
-          
+
           const generatedContent = await storage.createGeneratedContent({
             templateId: template.id,
             userId,
             content: generationResult.content,
-            metadata: { 
+            metadata: {
               ...generationResult.metadata,
-              batch: true, 
+              batch: true,
             },
           });
 
           totalCost += generationResult.metadata.cost;
           totalTokens += generationResult.metadata.tokens.total;
-          
+
           results.push({
             templateId: template.id,
             templateName: template.name,
@@ -1047,10 +1114,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
-      
+
       const successCount = results.filter(r => r.success).length;
-      
-      res.json({ 
+
+      res.json({
         message: `Batch generation complete: ${successCount}/${activeTemplates.length} templates successful`,
         results,
         totalTemplates: activeTemplates.length,
@@ -1069,8 +1136,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // =============================================================================
 
   // License activation (requires authentication)
-  app.post("/api/licenses/activate", 
-    isAuthenticated, 
+  app.post("/api/licenses/activate",
+    isAuthenticated,
     strictRateLimit,
     validateBody(activateLicenseSchema),
     async (req: any, res) => {
@@ -1079,13 +1146,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { licenseKey } = req.body;
 
         const result = await licenseService.activateLicense(licenseKey, userId);
-        
+
         if (!result.isValid) {
           return res.status(400).json({ success: false, message: result.message });
         }
-        
-        res.json({ 
-          success: true, 
+
+        res.json({
+          success: true,
           message: result.message,
           license: {
             status: result.status,
@@ -1101,8 +1168,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // License deactivation (self-service)
-  app.post("/api/licenses/deactivate", 
-    isAuthenticated, 
+  app.post("/api/licenses/deactivate",
+    isAuthenticated,
     strictRateLimit,
     validateBody(deactivateLicenseSchema),
     async (req: any, res) => {
@@ -1111,9 +1178,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { licenseKey } = req.body;
 
         const success = await licenseService.deactivateLicense(userId, licenseKey);
-        
-        res.json({ 
-          success, 
+
+        res.json({
+          success,
           message: 'License deactivated successfully. You can now activate it on another device.',
         });
       } catch (error: any) {
@@ -1124,14 +1191,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Get user licenses
-  app.get("/api/licenses", 
-    isAuthenticated, 
+  app.get("/api/licenses",
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const licenses = await storage.getUserLicenses(userId);
-        
+
         // Mask sensitive data
         const safeLicenses = licenses.map(license => ({
           id: license.id,
@@ -1142,7 +1209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastValidated: license.lastValidated,
           createdAt: license.createdAt,
         }));
-        
+
         res.json(safeLicenses);
       } catch (error: any) {
         console.error('Error fetching licenses:', error);
@@ -1152,17 +1219,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Validate license (used by client on startup)
-  app.post("/api/licenses/validate", 
-    isAuthenticated, 
+  app.post("/api/licenses/validate",
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
 
         const result = await licenseService.validateLicense(userId);
-        
-        res.json({ 
-          valid: result.isValid, 
+
+        res.json({
+          valid: result.isValid,
           message: result.message,
           license: result.isValid ? {
             licenseKey: result.licenseKey,
@@ -1178,8 +1245,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Create checkout session for license purchase
-  app.post("/api/payments/checkout/license", 
-    isAuthenticated, 
+  app.post("/api/payments/checkout/license",
+    isAuthenticated,
     strictRateLimit,
     validateBody(createCheckoutSchema),
     async (req: any, res) => {
@@ -1195,7 +1262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cancelUrl,
         });
 
-        res.json({ 
+        res.json({
           success: true,
           url: checkoutUrl,
         });
@@ -1207,8 +1274,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Create checkout session for managed hosting subscription
-  app.post("/api/payments/checkout/subscription", 
-    isAuthenticated, 
+  app.post("/api/payments/checkout/subscription",
+    isAuthenticated,
     strictRateLimit,
     validateBody(createSubscriptionCheckoutSchema),
     async (req: any, res) => {
@@ -1225,7 +1292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cancelUrl,
         });
 
-        res.json({ 
+        res.json({
           success: true,
           url: checkoutUrl,
         });
@@ -1242,9 +1309,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Note: In production, verify webhook signature with Stripe SDK
       // For now, assume event is valid (placeholder implementation)
       const event = req.body;
-      
+
       await stripeService.handleWebhook(event);
-      
+
       res.json({ received: true });
     } catch (error: any) {
       console.error('Error processing Stripe webhook:', error);
@@ -1257,7 +1324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const subscription = await storage.getUserSubscription(userId);
-      
+
       if (!subscription) {
         return res.json({ subscription: null });
       }
@@ -1287,8 +1354,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // =============================================================================
 
   // Check Ollama health
-  app.get("/api/ollama/health", 
-    isAuthenticated, 
+  app.get("/api/ollama/health",
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -1303,8 +1370,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // List Ollama models
-  app.get("/api/ollama/models", 
-    isAuthenticated, 
+  app.get("/api/ollama/models",
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -1319,8 +1386,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Get recommended Ollama models
-  app.get("/api/ollama/recommended", 
-    isAuthenticated, 
+  app.get("/api/ollama/recommended",
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -1334,8 +1401,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Get Ollama setup instructions
-  app.get("/api/ollama/setup", 
-    isAuthenticated, 
+  app.get("/api/ollama/setup",
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -1349,8 +1416,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Pull an Ollama model
-  app.post("/api/ollama/pull", 
-    isAuthenticated, 
+  app.post("/api/ollama/pull",
+    isAuthenticated,
     strictRateLimit,
     validateBody(pullModelSchema),
     async (req: any, res) => {
@@ -1358,8 +1425,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { modelName, host } = req.body;
 
         // This is a long-running operation, acknowledge immediately
-        res.json({ 
-          success: true, 
+        res.json({
+          success: true,
           message: `Started pulling model "${modelName}". This may take several minutes depending on model size.`,
         });
 
@@ -1378,8 +1445,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Delete an Ollama model
-  app.delete("/api/ollama/models/:modelName", 
-    isAuthenticated, 
+  app.delete("/api/ollama/models/:modelName",
+    isAuthenticated,
     strictRateLimit,
     async (req: any, res) => {
       try {
@@ -1387,7 +1454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const host = req.query.host as string | undefined;
 
         await ollamaService.deleteModel(modelName, host);
-        
+
         activityMonitor.logActivity('info', `🗑️  Ollama model "${modelName}" deleted`);
         res.json({ success: true, message: `Model "${modelName}" deleted successfully` });
       } catch (error: any) {
@@ -1408,17 +1475,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   wss.on('connection', (ws: WebSocket, req) => {
     console.log('🔌 WebSocket client connected');
     activityMonitor.logActivity('info', '🔌 New terminal client connected');
-    
+
     // Register client with activity monitor
     activityMonitor.registerClient(ws);
-    
+
     // Extract user session if available (for authorized commands)
     let userId: string | undefined;
-    
+
     ws.on('message', async (message: Buffer) => {
       try {
         const data = JSON.parse(message.toString());
-        
+
         if (data.type === 'subscribe') {
           // Client subscribing to activity feed
           ws.send(JSON.stringify({
@@ -1426,45 +1493,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: '✅ Connected to real-time activity monitor',
             timestamp: new Date().toISOString(),
           }));
-          
+
           // Send welcome message
-              ws.send(JSON.stringify({
+          ws.send(JSON.stringify({
             type: 'activity',
             level: 'info',
             message: '🎉 Amoeba Operations Console Ready',
             metadata: { tip: "Type 'help' for available commands" },
             timestamp: new Date().toISOString(),
           }));
-        } 
+        }
         else if (data.type === 'auth') {
           // Store user ID for authorized commands
           userId = data.userId;
-              ws.send(JSON.stringify({
+          ws.send(JSON.stringify({
             type: 'activity',
             level: 'success',
             message: `🔐 Authenticated as user ${userId?.substring(0, 8)}`,
             timestamp: new Date().toISOString(),
-              }));
-            }
+          }));
+        }
         else if (data.type === 'command') {
           const command = data.command?.trim();
-          
+
           if (!command) return;
-          
+
           // Log command execution
           activityMonitor.logActivity('debug', `$ ${command}`);
-          
+
           try {
             // Execute command via command executor
             const output = await commandExecutor.execute(command, userId);
-            
+
             // Check for special commands
             if (output === 'CLEAR_SCREEN') {
               ws.send(JSON.stringify({
                 type: 'clear_screen',
                 timestamp: new Date().toISOString(),
               }));
-          } else {
+            } else {
               ws.send(JSON.stringify({
                 type: 'command_output',
                 output: output,

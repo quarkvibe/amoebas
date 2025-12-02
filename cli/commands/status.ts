@@ -23,8 +23,8 @@ export function registerStatusCommands(program: Command) {
 
           // Components
           const table = createTable(['Component', 'Status', 'Message']);
-          
-          for (const [key, check] of Object.entries(readiness.checks)) {
+
+          for (const [key, check] of Object.entries(readiness.checks) as [string, any][]) {
             const componentName = key.replace(/([A-Z])/g, ' $1').trim();
             table.push([
               componentName.charAt(0).toUpperCase() + componentName.slice(1),
@@ -90,7 +90,7 @@ export function registerStatusCommands(program: Command) {
           log('');
           log('📊 USAGE STATISTICS');
           log('');
-          
+
           if (stats.totalGenerations !== undefined) {
             log(`  Content Generated: ${stats.totalGenerations}`);
           }

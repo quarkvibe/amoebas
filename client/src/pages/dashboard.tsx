@@ -31,13 +31,17 @@ import SMSCommands from "@/components/dashboard/SMSCommands";
 import SystemTesting from "@/components/dashboard/SystemTesting";
 import DeploymentGuide from "@/components/dashboard/DeploymentGuide";
 import DatabaseConfiguration from "@/components/dashboard/DatabaseConfiguration";
-// import CodeModification from "@/components/dashboard/CodeModification"; // DELETED - bloat
+import CodeModification from "@/components/dashboard/CodeModification";
+import { CommandPalette } from "@/components/dashboard/CommandPalette";
+import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { DashboardCustomizer } from "@/components/dashboard/DashboardCustomizer";
 
 export default function Dashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const [activeView, setActiveView] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { layout, toggleWidget, resetLayout } = useDashboardLayout();
 
   const renderActiveView = () => {
     switch (activeView) {
@@ -45,25 +49,31 @@ export default function Dashboard() {
         return (
           <div className="space-y-6">
             {/* Metrics Grid */}
-            <MetricsGrid />
-            
+            {layout.metrics && <MetricsGrid />}
+
             {/* Terminal Console */}
-            <Terminal />
-            
+            {layout.terminal && <Terminal />}
+
             {/* Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Live Activity Feed */}
-              <div className="lg:col-span-2">
-                <LiveActivityFeed />
-              </div>
+              {layout.activity && (
+                <div className={layout.status ? "lg:col-span-2" : "lg:col-span-3"}>
+                  <LiveActivityFeed />
+                </div>
+              )}
               {/* System Status */}
-              <SystemStatus />
+              {layout.status && (
+                <div className={layout.activity ? "" : "lg:col-span-3"}>
+                  <SystemStatus />
+                </div>
+              )}
             </div>
-            
+
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <HourlyChart />
-              <QueueStatus />
+              {layout.charts && <HourlyChart />}
+              {layout.queue && <QueueStatus />}
             </div>
           </div>
         );
@@ -113,8 +123,7 @@ export default function Dashboard() {
         return <LogsViewer />;
       case "files":
         return <FileManagement />;
-      case "health":
-        return <HealthMonitor />;
+
       case "api-settings":
         return <ApiSettings />;
       case "configuration":
@@ -145,18 +154,7 @@ export default function Dashboard() {
         return <DatabaseConfiguration />;
       case "code-modification":
       case "self-modify":
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">AI Assistant</h2>
-            <p className="text-muted-foreground">
-              AI assistant console coming soon. Will allow you to ask the AI to extend Amoeba's capabilities.
-            </p>
-            <div className="p-8 border-2 border-dashed rounded-lg text-center text-muted-foreground">
-              <i className="fas fa-robot text-4xl mb-4"></i>
-              <p>AI Assistant Interface - Coming Soon</p>
-            </div>
-          </div>
-        );
+        return <CodeModification />;
       case "license":
         return <LicenseManagement />;
       case "ollama":
@@ -193,7 +191,7 @@ export default function Dashboard() {
 
   // WebSocket connection for real-time updates
   const { subscribe } = useWebSocketContext();
-  
+
   useEffect(() => {
     const unsubscribe = subscribe((message) => {
       switch (message.type) {
@@ -237,19 +235,20 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen bg-background" data-testid="dashboard-container">
-      
+      <CommandPalette />
+
       {/* Mobile Overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
           data-testid="sidebar-overlay"
         />
       )}
-      
+
       {/* Sidebar */}
-      <Sidebar 
-        activeView={activeView} 
+      <Sidebar
+        activeView={activeView}
         onViewChange={(view) => {
           setActiveView(view);
           setSidebarOpen(false); // Close sidebar on mobile after selection
@@ -260,7 +259,7 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-64">
-        
+
         {/* Top Bar */}
         <TopBar onMenuClick={() => setSidebarOpen(true)} />
 
@@ -276,6 +275,13 @@ export default function Dashboard() {
                 Universal AI content generation and dissemination platform
               </p>
             </div>
+            {activeView === "overview" && (
+              <DashboardCustomizer
+                layout={layout}
+                onToggle={toggleWidget}
+                onReset={resetLayout}
+              />
+            )}
           </div>
 
           {/* Dynamic Content Based on Active View */}

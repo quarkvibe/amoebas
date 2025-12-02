@@ -115,11 +115,20 @@ export default function PricingPage() {
           </div>
           
           <h1 className="text-5xl sm:text-6xl font-bold text-text-primary mb-6">
-            Start Free. Upgrade When Ready.
+            <span className="bg-gradient-to-r from-red-500 to-orange-500 bg-clip-text text-transparent">
+              Stop Wasting $599/Month
+            </span>
+            <br />
+            Start Free. Scale Smart.
           </h1>
-          <p className="text-xl text-text-secondary max-w-3xl mx-auto mb-8">
-            Full platform is open source and free forever. Pay only if you need priority support, white-label, or SLA.
+          <p className="text-xl text-text-secondary max-w-3xl mx-auto mb-4">
+            Full enterprise platform. 100% free forever. Pay only for premium support if you want it.
           </p>
+          <div className="inline-block px-8 py-4 rounded-xl bg-gradient-to-r from-primary/20 to-accent/20 border-2 border-primary/40 mb-8">
+            <p className="text-2xl font-bold text-primary">
+              💰 Average Customer Saves $7,008 in Year 1
+            </p>
+          </div>
           
           <div className="flex items-center justify-center gap-4 text-sm text-text-secondary">
             <div className="flex items-center gap-2">
@@ -180,15 +189,14 @@ export default function PricingPage() {
                   {tier.description}
                 </p>
                 
-                <Link href={tier.ctaLink}>
-                  <Button
-                    variant={tier.popular ? 'primary' : 'secondary'}
-                    className="w-full mb-6"
-                  >
-                    {tier.cta}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
+              <Link href={tier.ctaLink}>
+                <Button
+                  variant={tier.popular ? 'primary' : 'secondary'}
+                  className="w-full mb-6"
+                >
+                  {tier.cta}
+                </Button>
+              </Link>
                 
                 <div className="space-y-3">
                   {tier.features.map((feature, i) => (

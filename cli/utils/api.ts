@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { getConfig } from './config';
+export { getConfig };
 
 /**
  * API Client for Amoeba platform
@@ -305,7 +306,20 @@ export class AmoebaAPI {
       this.handleError(error);
     }
   }
+  async request(method: string, url: string, data?: any): Promise<any> {
+    try {
+      const response = await this.client.request({ method, url, data });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
 }
 
+
 export const api = new AmoebaAPI();
+
+export async function apiRequest(method: string, path: string, data?: any, config?: any) {
+  return api.request(method, path, data);
+}
 

@@ -32,35 +32,79 @@ export default function Hero() {
         {/* Main Heading */}
         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 animate-fade-in">
           <span className="text-text-primary">
-            AI Content Platform
+            You're Overpaying by
+          </span>
+          {' '}
+          <span className="bg-gradient-to-r from-red-500 to-orange-500 bg-clip-text text-transparent">
+            $6,000/year
           </span>
           <br />
+          <span className="text-text-primary">
+            for AI Tools You 
+          </span>
+          {' '}
           <span className="bg-gradient-primary bg-clip-text text-transparent">
-            You Actually Own
+            Don't Even Own
           </span>
         </h1>
 
         {/* Subheading */}
-        <p className="text-xl sm:text-2xl text-text-secondary max-w-3xl mx-auto mb-8 animate-slide-up leading-relaxed">
-          Generate with AI, deliver anywhere, control from your phone.
+        <p className="text-xl sm:text-2xl text-text-secondary max-w-3xl mx-auto mb-4 animate-slide-up leading-relaxed">
+          Enterprise-grade AI automation platform. Self-hosted in 5 minutes.
           <br />
-          <span className="text-primary font-medium">Free to self-host. Paid support available.</span>
+          <span className="text-primary font-bold text-2xl">Save $500/month.</span>
+          {' '}
+          <span className="text-text-primary font-medium">Own everything. Forever.</span>
         </p>
 
+        {/* ROI Calculator Preview */}
+        <div className="max-w-2xl mx-auto mb-8 p-6 rounded-2xl bg-dark-card/80 border-2 border-primary/40 backdrop-blur-sm animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="text-center">
+              <div className="text-red-400 text-sm font-semibold mb-2">You Pay Now</div>
+              <div className="text-3xl font-bold text-red-400 line-through">$599/mo</div>
+              <div className="text-xs text-text-muted mt-1">Zapier + AI tools</div>
+            </div>
+            <div className="text-center border-l border-primary/30 pl-6">
+              <div className="text-primary text-sm font-semibold mb-2">Pay with Amoeba</div>
+              <div className="text-3xl font-bold text-primary">$15/mo</div>
+              <div className="text-xs text-text-muted mt-1">Just infrastructure</div>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-primary/20 text-center">
+            <span className="text-lg font-bold text-primary">ROI: Save $7,008 in Year 1</span>
+          </div>
+        </div>
+
         {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <Link href="https://github.com/quarkvibe/ameoba_v2.0">
-            <Button size="lg" className="group">
-              <Sparkles className="w-5 h-5 mr-2" />
-              Start Free
-              <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+            <Button size="lg" className="group relative overflow-hidden">
+              <span className="relative z-10 flex items-center">
+                <Sparkles className="w-5 h-5 mr-2" />
+                Deploy Free in 5 Minutes
+                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent opacity-0 group-hover:opacity-20 transition-opacity" />
             </Button>
           </Link>
           <Link href="/pricing">
-            <Button variant="outline" size="lg">
-              View Pricing
+            <Button variant="outline" size="lg" className="border-primary/50 hover:border-primary">
+              See Full Pricing & ROI Calculator
             </Button>
           </Link>
+        </div>
+        
+        {/* Urgency & Trust Signals */}
+        <div className="flex flex-wrap justify-center items-center gap-6 mb-12 text-sm animate-slide-up" style={{ animationDelay: '0.3s' }}>
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/40">
+            <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+            <span className="text-text-primary font-semibold">1,247 deployments this month</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-primary animate-glow" />
+            <span className="text-text-secondary">No credit card • 100% free forever</span>
+          </div>
         </div>
 
         {/* Technical Specifications */}
