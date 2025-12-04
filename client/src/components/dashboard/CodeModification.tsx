@@ -13,6 +13,8 @@ import { Highlight, themes } from "prism-react-renderer";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Trash2, AlertCircle, Download, CheckCircle2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface Message {
     role: 'user' | 'assistant' | 'tool';
@@ -27,9 +29,11 @@ export default function CodeModification() {
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [organelles, setOrganelles] = useState<any[]>([]);
+    const [registryItems, setRegistryItems] = useState<any[]>([]);
     const [mcpServers, setMcpServers] = useState<any[]>([]);
     const [fileTree, setFileTree] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState("files");
+    const [installingId, setInstallingId] = useState<string | null>(null);
     const [isDryRun, setIsDryRun] = useState(false);
     const [showOrganelleDialog, setShowOrganelleDialog] = useState(false);
     const [organelleName, setOrganelleName] = useState("");
@@ -39,6 +43,7 @@ export default function CodeModification() {
 
     useEffect(() => {
         fetchOrganelles();
+        fetchRegistry();
         fetchMcpServers();
         fetchFileTree();
     }, []);
@@ -58,6 +63,18 @@ export default function CodeModification() {
             }
         } catch (error) {
             console.error("Failed to fetch organelles", error);
+        }
+    };
+
+    const fetchRegistry = async () => {
+        try {
+            const res = await fetch('/api/registry');
+            if (res.ok) {
+                const data = await res.json();
+                setRegistryItems(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch registry", error);
         }
     };
 
@@ -219,6 +236,72 @@ export default function CodeModification() {
         }
     };
 
+    const handleDeleteOrganelle = async (name: string) => {
+        try {
+            const res = await apiRequest('DELETE', `/api/organelles/${name}`);
+            const data = await res.json();
+
+            if (res.ok) {
+                toast({
+                    title: "Organelle Deleted",
+                    description: data.message,
+                });
+                fetchOrganelles();
+                fetchFileTree();
+            } else {
+                toast({
+                    title: "Error",
+                    description: data.message,
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            console.error("Failed to delete organelle", error);
+            toast({
+                title: "Error",
+                description: "Failed to delete organelle",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleInstallOrganelle = async (id: string, name: string) => {
+        setInstallingId(id);
+        toast({
+            title: "Installing Organelle",
+            description: `Starting installation of ${name}... this may take a moment.`,
+        });
+
+        try {
+            const res = await apiRequest('POST', '/api/registry/install', { id });
+            const data = await res.json();
+
+            if (res.ok) {
+                toast({
+                    title: "Installation Complete",
+                    description: data.message,
+                });
+                fetchOrganelles();
+                fetchFileTree();
+            } else {
+                toast({
+                    title: "Installation Failed",
+                    description: data.message,
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            console.error("Failed to install organelle", error);
+            toast({
+                title: "Error",
+                description: "Failed to install organelle",
+                variant: "destructive",
+            });
+        } finally {
+            setInstallingId(null);
+        }
+    };
+
     return (
         <div className="h-[calc(100vh-120px)]">
             <ResizablePanelGroup direction="horizontal" className="rounded-lg border">
@@ -236,6 +319,8 @@ export default function CodeModification() {
                         <Tabs defaultValue="files" className="flex-1 flex flex-col">
                             <TabsList className="w-full justify-start px-4 pt-2 bg-transparent border-b rounded-none h-auto">
                                 <TabsTrigger value="files" className="data-[state=active]:bg-muted">Files</TabsTrigger>
+                                <TabsTrigger value="organelles" className="data-[state=active]:bg-muted">Organelles</TabsTrigger>
+                                <TabsTrigger value="registry" className="data-[state=active]:bg-muted">Registry</TabsTrigger>
                                 <TabsTrigger value="mcp" className="data-[state=active]:bg-muted">MCP</TabsTrigger>
                                 <TabsTrigger value="info" className="data-[state=active]:bg-muted">Info</TabsTrigger>
                             </TabsList>
@@ -245,6 +330,103 @@ export default function CodeModification() {
                                     onSelect={handleFileSelect}
                                     className="p-2"
                                 />
+                            </TabsContent>
+                            <TabsContent value="organelles" className="flex-1 p-4 m-0">
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Server className="w-4 h-4" />
+                                        <span>{organelles.length} organelles active</span>
+                                    </div>
+                                    <ScrollArea className="h-[calc(100vh-300px)]">
+                                        <div className="space-y-2">
+                                            {organelles.map((org, i) => (
+                                                <div key={i} className="flex items-center justify-between p-2 rounded-md border bg-card hover:bg-accent/50 transition-colors">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="font-medium text-sm">{org.name}</span>
+                                                        <span className="text-xs text-muted-foreground truncate max-w-[150px]">{org.description || "No description"}</span>
+                                                    </div>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Delete Organelle?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    This will permanently delete the <strong>{org.name}</strong> organelle and all associated files. This action cannot be undone.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteOrganelle(org.name)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                                                    Delete
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            ))}
+                                            {organelles.length === 0 && (
+                                                <div className="text-center py-8 text-muted-foreground text-sm">
+                                                    No organelles found.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </ScrollArea>
+                                </div>
+                            </TabsContent>
+                            <TabsContent value="registry" className="flex-1 p-4 m-0">
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Download className="w-4 h-4" />
+                                        <span>{registryItems.length} available to install</span>
+                                    </div>
+                                    <ScrollArea className="h-[calc(100vh-300px)]">
+                                        <div className="space-y-3">
+                                            {registryItems.map((item, i) => {
+                                                const isInstalled = organelles.some(o => o.name.toLowerCase() === item.name.toLowerCase().replace(/\s+/g, ''));
+                                                return (
+                                                    <div key={i} className="p-3 rounded-md border bg-card hover:bg-accent/50 transition-colors">
+                                                        <div className="flex items-start justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="p-1.5 bg-primary/10 rounded-md text-primary">
+                                                                    {/* Dynamic icon rendering could go here, using fallback for now */}
+                                                                    <Download className="w-4 h-4" />
+                                                                </div>
+                                                                <span className="font-medium text-sm">{item.name}</span>
+                                                            </div>
+                                                            {isInstalled ? (
+                                                                <Badge variant="outline" className="text-green-500 border-green-500 bg-green-500/10">
+                                                                    <CheckCircle2 className="w-3 h-3 mr-1" /> Installed
+                                                                </Badge>
+                                                            ) : (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="secondary"
+                                                                    className="h-7 text-xs"
+                                                                    onClick={() => handleInstallOrganelle(item.id, item.name)}
+                                                                    disabled={!!installingId}
+                                                                >
+                                                                    {installingId === item.id ? (
+                                                                        <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                                                    ) : (
+                                                                        <Download className="w-3 h-3 mr-1" />
+                                                                    )}
+                                                                    {installingId === item.id ? "Installing..." : "Install"}
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground leading-relaxed">
+                                                            {item.description}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </ScrollArea>
+                                </div>
                             </TabsContent>
                             <TabsContent value="mcp" className="flex-1 p-4 m-0">
                                 <div className="space-y-4">

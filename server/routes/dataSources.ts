@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { standardRateLimit, generousRateLimit, strictRateLimit } from '../middleware/rateLimiter';
 import { insertDataSourceSchema } from '@shared/schema';
 import { storage } from '../storage';
@@ -12,54 +12,54 @@ import { dataSourceService } from '../services/dataSourceService';
  */
 
 export function registerDataSourceRoutes(router: Router) {
-  
+
   // Create new data source
-  router.post('/data-sources', 
-    isAuthenticated, 
+  router.post('/data-sources',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
-        
+
         // Validate request body
         const validatedData = insertDataSourceSchema.parse({
           ...req.body,
           userId,
         });
-        
+
         const dataSource = await storage.createDataSource(validatedData);
-        
+
         res.status(201).json({
           success: true,
           dataSource,
         });
       } catch (error: any) {
         console.error('Error creating data source:', error);
-        
+
         if (error.name === 'ZodError') {
-          return res.status(400).json({ 
-            message: 'Validation failed', 
-            errors: error.errors 
+          return res.status(400).json({
+            message: 'Validation failed',
+            errors: error.errors
           });
         }
-        
+
         res.status(500).json({ message: 'Failed to create data source' });
       }
     }
   );
 
   // List data sources
-  router.get('/data-sources', 
-    isAuthenticated, 
+  router.get('/data-sources',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const type = req.query.type as string | undefined;
         const includeInactive = req.query.includeInactive === 'true';
-        
+
         const dataSources = await storage.getDataSources(userId);
-        
+
         res.json({ dataSources });
       } catch (error) {
         console.error('Error listing data sources:', error);
@@ -69,20 +69,20 @@ export function registerDataSourceRoutes(router: Router) {
   );
 
   // Get single data source
-  router.get('/data-sources/:id', 
-    isAuthenticated, 
+  router.get('/data-sources/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         const dataSource = await storage.getDataSource(id, userId);
-        
+
         if (!dataSource) {
           return res.status(404).json({ message: 'Data source not found' });
         }
-        
+
         res.json(dataSource);
       } catch (error) {
         console.error('Error fetching data source:', error);
@@ -92,23 +92,23 @@ export function registerDataSourceRoutes(router: Router) {
   );
 
   // Update data source
-  router.put('/data-sources/:id', 
-    isAuthenticated, 
+  router.put('/data-sources/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const existingDataSource = await storage.getDataSource(id, userId);
         if (!existingDataSource) {
           return res.status(404).json({ message: 'Data source not found' });
         }
-        
+
         // Update data source
         const updatedDataSource = await storage.updateDataSource(id, userId, req.body);
-        
+
         res.json({
           success: true,
           dataSource: updatedDataSource,
@@ -121,22 +121,22 @@ export function registerDataSourceRoutes(router: Router) {
   );
 
   // Delete data source
-  router.delete('/data-sources/:id', 
-    isAuthenticated, 
+  router.delete('/data-sources/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const dataSource = await storage.getDataSource(id, userId);
         if (!dataSource) {
           return res.status(404).json({ message: 'Data source not found' });
         }
-        
+
         await storage.deleteDataSource(id, userId);
-        
+
         res.json({ success: true, message: 'Data source deleted' });
       } catch (error) {
         console.error('Error deleting data source:', error);
@@ -146,22 +146,22 @@ export function registerDataSourceRoutes(router: Router) {
   );
 
   // Test data source connection
-  router.post('/data-sources/:id/test', 
-    isAuthenticated, 
+  router.post('/data-sources/:id/test',
+    isAuthenticated,
     strictRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         const dataSource = await storage.getDataSource(id, userId);
         if (!dataSource) {
           return res.status(404).json({ message: 'Data source not found' });
         }
-        
+
         // Test data source
         const result = await dataSourceService.testDataSource(id, userId);
-        
+
         res.json({
           success: result.success,
           message: result.message,
@@ -169,34 +169,34 @@ export function registerDataSourceRoutes(router: Router) {
         });
       } catch (error: any) {
         console.error('Error testing data source:', error);
-        res.status(500).json({ 
+        res.status(500).json({
           success: false,
-          message: error.message || 'Data source test failed' 
+          message: error.message || 'Data source test failed'
         });
       }
     }
   );
 
   // Fetch data from source (manual trigger)
-  router.post('/data-sources/:id/fetch', 
-    isAuthenticated, 
+  router.post('/data-sources/:id/fetch',
+    isAuthenticated,
     strictRateLimit,
     async (req: any, res) => {
       const userId = req.user.claims.sub;
       const { id } = req.params;
-      
+
       try {
         const dataSource = await storage.getDataSource(id, userId);
         if (!dataSource) {
           return res.status(404).json({ message: 'Data source not found' });
         }
-        
+
         // Fetch data
         const data = await dataSourceService.fetchData({ dataSourceId: id, userId });
-        
+
         // Update last fetch time (success)
         await storage.updateDataSourceLastFetch(id, true);
-        
+
         res.json({
           success: true,
           itemCount: Array.isArray(data) ? data.length : 1,
@@ -204,37 +204,37 @@ export function registerDataSourceRoutes(router: Router) {
         });
       } catch (error: any) {
         console.error('Error fetching data:', error);
-        
+
         // Update error count
         try {
           await storage.incrementDataSourceErrorCount(id);
         } catch (e) {
           // Ignore error count update failure
         }
-        
-        res.status(500).json({ 
+
+        res.status(500).json({
           success: false,
-          message: error.message || 'Failed to fetch data' 
+          message: error.message || 'Failed to fetch data'
         });
       }
     }
   );
 
   // Get data source statistics
-  router.get('/data-sources/:id/stats', 
-    isAuthenticated, 
+  router.get('/data-sources/:id/stats',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const dataSource = await storage.getDataSource(id, userId);
         if (!dataSource) {
           return res.status(404).json({ message: 'Data source not found' });
         }
-        
+
         res.json({
           id,
           name: dataSource.name,
@@ -253,8 +253,8 @@ export function registerDataSourceRoutes(router: Router) {
   );
 
   // Get data source types and their schemas
-  router.get('/data-sources/types/available', 
-    isAuthenticated, 
+  router.get('/data-sources/types/available',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -299,7 +299,7 @@ export function registerDataSourceRoutes(router: Router) {
             },
           },
         ];
-        
+
         res.json({ types });
       } catch (error) {
         console.error('Error fetching data source types:', error);
@@ -309,35 +309,35 @@ export function registerDataSourceRoutes(router: Router) {
   );
 
   // Link data source to template
-  router.post('/data-sources/:id/link-template', 
-    isAuthenticated, 
+  router.post('/data-sources/:id/link-template',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
         const { templateId } = req.body;
-        
+
         if (!templateId) {
           return res.status(400).json({ message: 'templateId is required' });
         }
-        
+
         // Verify ownership of both
         const dataSource = await storage.getDataSource(id, userId);
         if (!dataSource) {
           return res.status(404).json({ message: 'Data source not found' });
         }
-        
+
         const template = await storage.getContentTemplate(templateId, userId);
         if (!template) {
           return res.status(404).json({ message: 'Template not found' });
         }
-        
+
         // Create link
         await storage.linkTemplateDataSource(templateId, id);
-        
-        res.json({ 
-          success: true, 
+
+        res.json({
+          success: true,
           message: 'Data source linked to template',
         });
       } catch (error) {
@@ -348,26 +348,26 @@ export function registerDataSourceRoutes(router: Router) {
   );
 
   // Unlink data source from template
-  router.delete('/data-sources/:id/unlink-template/:templateId', 
-    isAuthenticated, 
+  router.delete('/data-sources/:id/unlink-template/:templateId',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id, templateId } = req.params;
-        
+
         // Verify ownership
         const dataSource = await storage.getDataSource(id, userId);
         if (!dataSource) {
           return res.status(404).json({ message: 'Data source not found' });
         }
-        
+
         // Unlink
         await storage.unlinkTemplateDataSource(templateId, id);
-        
-        res.json({ 
-          success: true, 
-          message: 'Data source unlinked from template' 
+
+        res.json({
+          success: true,
+          message: 'Data source unlinked from template'
         });
       } catch (error) {
         console.error('Error unlinking data source:', error);

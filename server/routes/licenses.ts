@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { strictRateLimit, standardRateLimit, generousRateLimit } from '../middleware/rateLimiter';
 import { validateBody } from '../middleware/validation';
 import { activateLicenseSchema, deactivateLicenseSchema } from '../validation/monetization';
@@ -12,10 +12,10 @@ import { storage } from '../storage';
  */
 
 export function registerLicenseRoutes(router: Router) {
-  
+
   // Activate license (bind to device)
-  router.post('/licenses/activate', 
-    isAuthenticated, 
+  router.post('/licenses/activate',
+    isAuthenticated,
     strictRateLimit,
     validateBody(activateLicenseSchema),
     async (req: any, res) => {
@@ -24,13 +24,13 @@ export function registerLicenseRoutes(router: Router) {
         const { licenseKey } = req.body;
 
         const result = await licenseService.activateLicense(licenseKey, userId);
-        
+
         if (!result.isValid) {
           return res.status(400).json({ success: false, message: result.message });
         }
-        
-        res.json({ 
-          success: true, 
+
+        res.json({
+          success: true,
           message: result.message,
           license: {
             status: result.status,
@@ -46,8 +46,8 @@ export function registerLicenseRoutes(router: Router) {
   );
 
   // Deactivate license (self-service device release)
-  router.post('/licenses/deactivate', 
-    isAuthenticated, 
+  router.post('/licenses/deactivate',
+    isAuthenticated,
     strictRateLimit,
     validateBody(deactivateLicenseSchema),
     async (req: any, res) => {
@@ -56,9 +56,9 @@ export function registerLicenseRoutes(router: Router) {
         const { licenseKey } = req.body;
 
         const success = await licenseService.deactivateLicense(userId, licenseKey);
-        
-        res.json({ 
-          success, 
+
+        res.json({
+          success,
           message: 'License deactivated successfully. You can now activate it on another device.',
         });
       } catch (error: any) {
@@ -69,14 +69,14 @@ export function registerLicenseRoutes(router: Router) {
   );
 
   // List user's licenses
-  router.get('/licenses', 
-    isAuthenticated, 
+  router.get('/licenses',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const licenses = await storage.getUserLicenses(userId);
-        
+
         // Mask sensitive data
         const safeLicenses = licenses.map(license => ({
           id: license.id,
@@ -87,7 +87,7 @@ export function registerLicenseRoutes(router: Router) {
           lastValidated: license.lastValidated,
           createdAt: license.createdAt,
         }));
-        
+
         res.json(safeLicenses);
       } catch (error: any) {
         console.error('Error fetching licenses:', error);
@@ -97,17 +97,17 @@ export function registerLicenseRoutes(router: Router) {
   );
 
   // Validate license (used by client on startup)
-  router.post('/licenses/validate', 
-    isAuthenticated, 
+  router.post('/licenses/validate',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
 
         const result = await licenseService.validateLicense(userId);
-        
-        res.json({ 
-          valid: result.isValid, 
+
+        res.json({
+          valid: result.isValid,
           message: result.message,
           license: result.isValid ? {
             licenseKey: result.licenseKey,

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { standardRateLimit, generousRateLimit } from '../middleware/rateLimiter';
 import { insertDistributionRuleSchema } from '@shared/schema';
 import { storage } from '../storage';
@@ -11,54 +11,54 @@ import { storage } from '../storage';
  */
 
 export function registerDistributionRoutes(router: Router) {
-  
+
   // Create new distribution rule
-  router.post('/distributions', 
-    isAuthenticated, 
+  router.post('/distributions',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
-        
+
         // Validate request body
         const validatedData = insertDistributionRuleSchema.parse({
           ...req.body,
           userId,
         });
-        
+
         const rule = await storage.createDistributionRule(validatedData);
-        
+
         res.status(201).json({
           success: true,
           rule,
         });
       } catch (error: any) {
         console.error('Error creating distribution rule:', error);
-        
+
         if (error.name === 'ZodError') {
-          return res.status(400).json({ 
-            message: 'Validation failed', 
-            errors: error.errors 
+          return res.status(400).json({
+            message: 'Validation failed',
+            errors: error.errors
           });
         }
-        
+
         res.status(500).json({ message: 'Failed to create distribution rule' });
       }
     }
   );
 
   // List distribution rules
-  router.get('/distributions', 
-    isAuthenticated, 
+  router.get('/distributions',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const includeInactive = req.query.includeInactive === 'true';
         const templateId = req.query.templateId as string | undefined;
-        
+
         const rules = await storage.getDistributionRules(userId);
-        
+
         res.json({ rules });
       } catch (error) {
         console.error('Error listing distribution rules:', error);
@@ -68,20 +68,20 @@ export function registerDistributionRoutes(router: Router) {
   );
 
   // Get single distribution rule
-  router.get('/distributions/:id', 
-    isAuthenticated, 
+  router.get('/distributions/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         const rule = await storage.getDistributionRule(id, userId);
-        
+
         if (!rule) {
           return res.status(404).json({ message: 'Distribution rule not found' });
         }
-        
+
         res.json(rule);
       } catch (error) {
         console.error('Error fetching distribution rule:', error);
@@ -91,23 +91,23 @@ export function registerDistributionRoutes(router: Router) {
   );
 
   // Update distribution rule
-  router.put('/distributions/:id', 
-    isAuthenticated, 
+  router.put('/distributions/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const existingRule = await storage.getDistributionRule(id, userId);
         if (!existingRule) {
           return res.status(404).json({ message: 'Distribution rule not found' });
         }
-        
+
         // Update rule
         const updatedRule = await storage.updateDistributionRule(id, userId, req.body);
-        
+
         res.json({
           success: true,
           rule: updatedRule,
@@ -120,22 +120,22 @@ export function registerDistributionRoutes(router: Router) {
   );
 
   // Delete distribution rule
-  router.delete('/distributions/:id', 
-    isAuthenticated, 
+  router.delete('/distributions/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const rule = await storage.getDistributionRule(id, userId);
         if (!rule) {
           return res.status(404).json({ message: 'Distribution rule not found' });
         }
-        
+
         await storage.deleteDistributionRule(id, userId);
-        
+
         res.json({ success: true, message: 'Distribution rule deleted' });
       } catch (error) {
         console.error('Error deleting distribution rule:', error);
@@ -145,23 +145,23 @@ export function registerDistributionRoutes(router: Router) {
   );
 
   // Test distribution rule (simulate matching)
-  router.post('/distributions/:id/test', 
-    isAuthenticated, 
+  router.post('/distributions/:id/test',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
         const { testContent } = req.body;
-        
+
         const rule = await storage.getDistributionRule(id, userId);
         if (!rule) {
           return res.status(404).json({ message: 'Distribution rule not found' });
         }
-        
+
         // TODO: Implement actual rule matching logic
         // For now, return basic info
-        
+
         res.json({
           ruleId: id,
           ruleName: rule.name,
@@ -178,18 +178,18 @@ export function registerDistributionRoutes(router: Router) {
   );
 
   // Reorder distribution rules (priority)
-  router.post('/distributions/reorder', 
-    isAuthenticated, 
+  router.post('/distributions/reorder',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { ruleIds } = req.body; // Array of rule IDs in desired order
-        
+
         if (!Array.isArray(ruleIds) || ruleIds.length === 0) {
           return res.status(400).json({ message: 'ruleIds array is required' });
         }
-        
+
         // Verify all rules belong to user
         for (const id of ruleIds) {
           const rule = await storage.getDistributionRule(id, userId);
@@ -197,12 +197,12 @@ export function registerDistributionRoutes(router: Router) {
             return res.status(404).json({ message: `Rule ${id} not found` });
           }
         }
-        
+
         // Update priorities
         for (let i = 0; i < ruleIds.length; i++) {
           await storage.updateDistributionRule(ruleIds[i], userId, { priority: i });
         }
-        
+
         res.json({
           success: true,
           message: 'Distribution rules reordered',
@@ -216,8 +216,8 @@ export function registerDistributionRoutes(router: Router) {
   );
 
   // Get available condition types
-  router.get('/distributions/conditions/available', 
-    isAuthenticated, 
+  router.get('/distributions/conditions/available',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -290,7 +290,7 @@ export function registerDistributionRoutes(router: Router) {
             parameters: [],
           },
         ];
-        
+
         res.json({ conditionTypes });
       } catch (error) {
         console.error('Error fetching condition types:', error);

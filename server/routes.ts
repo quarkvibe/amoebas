@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import {
   insertContentTemplateSchema,
@@ -10,18 +10,18 @@ import {
   insertScheduledJobSchema,
   insertGeneratedContentSchema,
 } from "@shared/schema";
-// import { queueService } from "./services/queueService"; // REMOVED - bloat
-// import { emailService } from "./services/emailService"; // REMOVED - use deliveryService
+
 import { aiAgent } from "./services/aiAgent";
 import { codingAgentService } from "./services/codingAgentService";
 import { organelleService } from "./services/organelleService";
 import { mcpService } from "./services/mcpService";
+import { registryService } from "./services/registryService";
 import { cronService } from "./services/cronService";
 import { integrationService } from "./services/integrationService";
 import { WebSocketServer, WebSocket } from "ws";
 import { activityMonitor } from "./services/activityMonitor";
 import { commandExecutor } from "./services/commandExecutor";
-// import { systemReadinessService } from "./services/systemReadiness"; // REMOVED - bloat
+
 import { contentGenerationService } from "./services/contentGenerationService";
 import { deliveryService } from "./services/deliveryService";
 import { dataSourceService } from "./services/dataSourceService";
@@ -45,6 +45,8 @@ import {
 import {
   pullModelSchema,
 } from "./validation/ollama";
+
+import { isAuthenticated } from "./middleware/auth";
 
 // API Key Authentication Middleware
 async function requireApiKey(req: any, res: any, next: any, permissions: string[] = []) {
@@ -94,7 +96,17 @@ async function requireApiKey(req: any, res: any, next: any, permissions: string[
   }
 }
 
+import socialAutomatorRouter from "./routes/socialAutomator";
+import colonyRouter from "./routes/colony";
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // ... existing setup ...
+
+  // Register Social Automator Organelle
+  app.use("/api/social-automator", socialAutomatorRouter);
+
+  // Register Colony Manager
+  app.use("/api/colony", colonyRouter);
   // Simple health checks BEFORE auth middleware
   app.get('/healthz', (req, res) => res.status(200).send('OK'));
   app.get('/readyz', (req, res) => res.status(200).json({ status: 'ready' }));
@@ -103,15 +115,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
+  app.get('/api/auth/user', (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    res.json(req.user);
   });
 
   // Health check endpoint (public) - Simple version
@@ -151,22 +157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // =============================================================================
-  // LEGACY ROUTES REMOVED - AMOEBA AI PLATFORM
-  // =============================================================================
-  // Removed:
-  // - Dashboard metrics (getEmailMetrics) - use templates/generated content stats instead
-  // - Campaign management (/api/campaigns/*) - use content templates instead
-  // - Email management (/api/emails/*) - use output channels for email delivery
-  // - Queue management (/api/queue/*) - Amoeba executes directly via scheduled jobs
-  //
-  // Amoeba Core Features:
-  // - Content Templates (/api/templates/*)
-  // - Data Sources (/api/data-sources/*)
-  // - Output Channels (/api/outputs/*) - includes email delivery
-  // - Scheduled Jobs (/api/schedules/*)
-  // - Generated Content (/api/content/*)
-  // =============================================================================
+
 
   // =============================================================================
   // =============================================================================
@@ -195,6 +186,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching organelles:", error);
       res.status(500).json({ message: "Failed to fetch organelles" });
+    }
+  });
+
+  app.delete("/api/organelles/:name", isAuthenticated, async (req: any, res) => {
+    try {
+      const { name } = req.params;
+      const result = await organelleService.deleteOrganelle(name);
+
+      if (!result.success) {
+        return res.status(404).json({ message: result.message });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error deleting organelle:", error);
+      res.status(500).json({ message: "Failed to delete organelle" });
+    }
+  });
+
+  // Setup & System Status
+  app.get("/api/setup/status", async (_req, res) => {
+    try {
+      const userCount = await storage.getUserCount();
+      res.json({
+        requiresSetup: userCount === 0,
+        userCount
+      });
+    } catch (error) {
+      console.error("Error checking setup status:", error);
+      res.status(500).json({ message: "Failed to check setup status" });
+    }
+  });
+
+  // Organelles Registry
+  app.get("/api/registry", isAuthenticated, async (req: any, res) => {
+    try {
+      const items = await registryService.getRegistry();
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching registry:", error);
+      res.status(500).json({ message: "Failed to fetch registry" });
+    }
+  });
+
+  app.post("/api/registry/install", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.body;
+
+      if (!id) {
+        return res.status(400).json({ message: "Organelle ID is required" });
+      }
+
+      const result = await registryService.installOrganelle(id, userId);
+
+      if (!result.success) {
+        return res.status(500).json({ message: result.message });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error installing organelle:", error);
+      res.status(500).json({ message: "Failed to install organelle" });
     }
   });
 

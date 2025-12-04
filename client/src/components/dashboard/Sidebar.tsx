@@ -20,6 +20,8 @@ const navigation = [
   { id: 'configuration', name: 'Environment', icon: 'fas fa-cog' },
   { id: 'license', name: 'License', icon: 'fas fa-id-card' },
   { id: 'ollama', name: 'Ollama Setup', icon: 'fas fa-server' },
+  { id: 'social-automator', name: 'Social Automator', icon: 'fas fa-share-square' },
+  { id: 'colony', name: 'The Colony', icon: 'fas fa-dna' },
   { id: 'api-settings', name: 'API Keys', icon: 'fas fa-code' },
 ];
 
@@ -37,11 +39,10 @@ export default function Sidebar({ activeView, onViewChange, isOpen = false, onCl
   };
 
   return (
-    <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 lg:translate-x-0 ${
-      isOpen ? 'translate-x-0' : '-translate-x-full'
-    }`}>
+    <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
       <div className="flex flex-col h-full">
-        
+
         {/* Logo Section */}
         <div className="flex items-center justify-between gap-3 p-6 border-b border-border">
           <div className="flex items-center gap-3">
@@ -55,7 +56,7 @@ export default function Sidebar({ activeView, onViewChange, isOpen = false, onCl
           </div>
           {/* Close button for mobile */}
           {onClose && (
-            <button 
+            <button
               onClick={onClose}
               className="lg:hidden p-2 hover:bg-muted rounded-lg transition-colors"
               data-testid="button-close-sidebar"
@@ -71,11 +72,10 @@ export default function Sidebar({ activeView, onViewChange, isOpen = false, onCl
             <button
               key={item.id}
               onClick={() => handleNavigation(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${
-                activeView === item.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left ${activeView === item.id
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
               data-testid={`nav-${item.id}`}
             >
               <i className={`${item.icon} w-4`}></i>

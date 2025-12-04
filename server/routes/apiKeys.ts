@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { standardRateLimit, strictRateLimit, generousRateLimit } from '../middleware/rateLimiter';
 import { integrationService } from '../services/integrationService';
 
@@ -10,15 +10,15 @@ import { integrationService } from '../services/integrationService';
  */
 
 export function registerApiKeyRoutes(router: Router) {
-  
+
   // List user's API keys
-  router.get('/api-keys', 
-    isAuthenticated, 
+  router.get('/api-keys',
+    isAuthenticated,
     generousRateLimit,
     async (req, res) => {
       try {
         const apiKeys = await integrationService.getApiKeys();
-        
+
         // Don't return the actual key hash, only metadata
         const safeApiKeys = apiKeys.map(key => ({
           id: key.id,
@@ -30,7 +30,7 @@ export function registerApiKeyRoutes(router: Router) {
           createdAt: key.createdAt,
           updatedAt: key.updatedAt,
         }));
-        
+
         res.json(safeApiKeys);
       } catch (error) {
         console.error('Error fetching API keys:', error);
@@ -40,19 +40,19 @@ export function registerApiKeyRoutes(router: Router) {
   );
 
   // Generate new API key
-  router.post('/api-keys', 
-    isAuthenticated, 
+  router.post('/api-keys',
+    isAuthenticated,
     standardRateLimit,
     async (req, res) => {
       try {
         const { name, permissions, expiresIn } = req.body;
-        
+
         if (!name || !permissions || !Array.isArray(permissions)) {
-          return res.status(400).json({ 
-            message: 'name and permissions array are required' 
+          return res.status(400).json({
+            message: 'name and permissions array are required'
           });
         }
-        
+
         // Validate permissions
         const validPermissions = [
           'content:read',
@@ -66,17 +66,17 @@ export function registerApiKeyRoutes(router: Router) {
           'outputs:read',
           'outputs:write',
         ];
-        
+
         for (const permission of permissions) {
           if (!validPermissions.includes(permission)) {
-            return res.status(400).json({ 
-              message: `Invalid permission: ${permission}` 
+            return res.status(400).json({
+              message: `Invalid permission: ${permission}`
             });
           }
         }
-        
+
         const result = await integrationService.generateApiKey(name, permissions);
-        
+
         res.json({
           message: 'API key generated successfully. Store it securely - it will not be shown again.',
           apiKey: {
@@ -95,24 +95,24 @@ export function registerApiKeyRoutes(router: Router) {
   );
 
   // Update API key metadata
-  router.put('/api-keys/:id', 
-    isAuthenticated, 
+  router.put('/api-keys/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req, res) => {
       try {
         const { id } = req.params;
         const { name, permissions, isActive } = req.body;
-        
+
         const updatedKey = await integrationService.updateApiKey(id, {
           name,
           permissions,
           isActive,
         });
-        
+
         if (!updatedKey) {
           return res.status(404).json({ message: 'API key not found' });
         }
-        
+
         res.json({
           success: true,
           apiKey: {
@@ -130,8 +130,8 @@ export function registerApiKeyRoutes(router: Router) {
   );
 
   // Revoke/delete API key
-  router.delete('/api-keys/:id', 
-    isAuthenticated, 
+  router.delete('/api-keys/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req, res) => {
       try {
@@ -146,15 +146,15 @@ export function registerApiKeyRoutes(router: Router) {
   );
 
   // Get API key usage statistics
-  router.get('/api-keys/:id/stats', 
-    isAuthenticated, 
+  router.get('/api-keys/:id/stats',
+    isAuthenticated,
     standardRateLimit,
     async (req, res) => {
       try {
         const { id } = req.params;
-        
+
         const stats = await integrationService.getApiKeyStats(id);
-        
+
         res.json({
           id,
           name: stats.name,
@@ -171,8 +171,8 @@ export function registerApiKeyRoutes(router: Router) {
   );
 
   // Get available permissions
-  router.get('/api-keys/permissions/available', 
-    isAuthenticated, 
+  router.get('/api-keys/permissions/available',
+    isAuthenticated,
     generousRateLimit,
     async (req, res) => {
       try {
@@ -213,7 +213,7 @@ export function registerApiKeyRoutes(router: Router) {
             ],
           },
         ];
-        
+
         res.json({ permissions });
       } catch (error) {
         console.error('Error fetching permissions:', error);
@@ -223,15 +223,15 @@ export function registerApiKeyRoutes(router: Router) {
   );
 
   // Rotate API key (generates new key, marks old as inactive)
-  router.post('/api-keys/:id/rotate', 
-    isAuthenticated, 
+  router.post('/api-keys/:id/rotate',
+    isAuthenticated,
     strictRateLimit,
     async (req, res) => {
       try {
         const { id } = req.params;
-        
+
         const result = await integrationService.rotateApiKey(id);
-        
+
         res.json({
           message: 'API key rotated successfully. Store the new key securely - it will not be shown again.',
           apiKey: {

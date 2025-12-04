@@ -70,6 +70,45 @@ export class OrganelleService {
             }
         }
     }
+    /**
+     * Delete an Organelle
+     */
+    async deleteOrganelle(name: string): Promise<{ success: boolean; message: string }> {
+        const pascalName = name.charAt(0).toUpperCase() + name.slice(1);
+        const camelName = name.toLowerCase();
+
+        const routePath = path.join(process.cwd(), `server/routes/${camelName}.ts`);
+        const componentPath = path.join(process.cwd(), `client/src/components/organelles/${pascalName}.tsx`);
+
+        const deleted: string[] = [];
+
+        try {
+            await fs.unlink(routePath);
+            deleted.push(`server/routes/${camelName}.ts`);
+        } catch (e) {
+            // Ignore if not found
+        }
+
+        try {
+            await fs.unlink(componentPath);
+            deleted.push(`client/src/components/organelles/${pascalName}.tsx`);
+        } catch (e) {
+            // Ignore if not found
+        }
+
+        // Also remove from DB if it exists
+        try {
+            await db.delete(organelles).where(eq(organelles.path, `server/routes/${camelName}.ts`));
+        } catch (e) {
+            console.error("Failed to delete from DB:", e);
+        }
+
+        if (deleted.length === 0) {
+            return { success: false, message: `No files found for organelle '${name}'` };
+        }
+
+        return { success: true, message: `Deleted organelle '${name}'. Removed files:\n${deleted.join('\n')}` };
+    }
 }
 
 export const organelleService = new OrganelleService();

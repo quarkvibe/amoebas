@@ -15,7 +15,7 @@ export function registerAuthCommands(program: Command) {
     .option('--token <token>', 'Login with existing token')
     .action(async (options) => {
       try {
-        let apiUrl = options.apiUrl || getConfigValue('apiUrl') || 'http://localhost:5000';
+        const apiUrl = options.apiUrl || getConfigValue('apiUrl') || 'http://localhost:5000';
         
         // Save API URL if provided
         if (options.apiUrl) {

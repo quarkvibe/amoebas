@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { standardRateLimit, generousRateLimit } from '../middleware/rateLimiter';
 import { insertContentTemplateSchema } from '@shared/schema';
 import { storage } from '../storage';
@@ -11,54 +11,54 @@ import { storage } from '../storage';
  */
 
 export function registerTemplateRoutes(router: Router) {
-  
+
   // Create new template
-  router.post('/templates', 
-    isAuthenticated, 
+  router.post('/templates',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
-        
+
         // Validate request body
         const validatedData = insertContentTemplateSchema.parse({
           ...req.body,
           userId,
         });
-        
+
         const template = await storage.createContentTemplate(validatedData);
-        
+
         res.status(201).json({
           success: true,
           template,
         });
       } catch (error: any) {
         console.error('Error creating template:', error);
-        
+
         if (error.name === 'ZodError') {
-          return res.status(400).json({ 
-            message: 'Validation failed', 
-            errors: error.errors 
+          return res.status(400).json({
+            message: 'Validation failed',
+            errors: error.errors
           });
         }
-        
+
         res.status(500).json({ message: 'Failed to create template' });
       }
     }
   );
 
   // List templates
-  router.get('/templates', 
-    isAuthenticated, 
+  router.get('/templates',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const includeInactive = req.query.includeInactive === 'true';
         const category = req.query.category as string | undefined;
-        
+
         const templates = await storage.getContentTemplates(userId);
-        
+
         res.json({ templates });
       } catch (error) {
         console.error('Error listing templates:', error);
@@ -68,20 +68,20 @@ export function registerTemplateRoutes(router: Router) {
   );
 
   // Get single template
-  router.get('/templates/:id', 
-    isAuthenticated, 
+  router.get('/templates/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         const template = await storage.getContentTemplate(id, userId);
-        
+
         if (!template) {
           return res.status(404).json({ message: 'Template not found' });
         }
-        
+
         res.json(template);
       } catch (error) {
         console.error('Error fetching template:', error);
@@ -91,23 +91,23 @@ export function registerTemplateRoutes(router: Router) {
   );
 
   // Update template
-  router.put('/templates/:id', 
-    isAuthenticated, 
+  router.put('/templates/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const existingTemplate = await storage.getContentTemplate(id, userId);
         if (!existingTemplate) {
           return res.status(404).json({ message: 'Template not found' });
         }
-        
+
         // Update template
         const updatedTemplate = await storage.updateContentTemplate(id, userId, req.body);
-        
+
         res.json({
           success: true,
           template: updatedTemplate,
@@ -120,22 +120,22 @@ export function registerTemplateRoutes(router: Router) {
   );
 
   // Delete template
-  router.delete('/templates/:id', 
-    isAuthenticated, 
+  router.delete('/templates/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const template = await storage.getContentTemplate(id, userId);
         if (!template) {
           return res.status(404).json({ message: 'Template not found' });
         }
-        
+
         await storage.deleteContentTemplate(id, userId);
-        
+
         res.json({ success: true, message: 'Template deleted' });
       } catch (error) {
         console.error('Error deleting template:', error);
@@ -145,20 +145,20 @@ export function registerTemplateRoutes(router: Router) {
   );
 
   // Duplicate template
-  router.post('/templates/:id/duplicate', 
-    isAuthenticated, 
+  router.post('/templates/:id/duplicate',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Get original template
         const original = await storage.getContentTemplate(id, userId);
         if (!original) {
           return res.status(404).json({ message: 'Template not found' });
         }
-        
+
         // Create duplicate
         const duplicate = await storage.createContentTemplate({
           userId,
@@ -173,7 +173,7 @@ export function registerTemplateRoutes(router: Router) {
           isActive: false, // Duplicates start inactive
           isPublic: false,
         });
-        
+
         res.status(201).json({
           success: true,
           template: duplicate,
@@ -186,22 +186,22 @@ export function registerTemplateRoutes(router: Router) {
   );
 
   // Get template usage statistics
-  router.get('/templates/:id/stats', 
-    isAuthenticated, 
+  router.get('/templates/:id/stats',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const template = await storage.getContentTemplate(id, userId);
         if (!template) {
           return res.status(404).json({ message: 'Template not found' });
         }
-        
+
         const stats = await storage.getTemplateStats(id);
-        
+
         res.json({
           templateId: id,
           totalGenerations: stats.total,
@@ -218,19 +218,19 @@ export function registerTemplateRoutes(router: Router) {
   );
 
   // Export template as JSON
-  router.get('/templates/:id/export', 
-    isAuthenticated, 
+  router.get('/templates/:id/export',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         const template = await storage.getContentTemplate(id, userId);
         if (!template) {
           return res.status(404).json({ message: 'Template not found' });
         }
-        
+
         // Strip internal fields for export
         const exportData = {
           name: template.name,
@@ -244,7 +244,7 @@ export function registerTemplateRoutes(router: Router) {
           exportedAt: new Date().toISOString(),
           version: '1.0',
         };
-        
+
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Content-Disposition', `attachment; filename="template-${template.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.json"`);
         res.json(exportData);
@@ -256,21 +256,21 @@ export function registerTemplateRoutes(router: Router) {
   );
 
   // Import template from JSON
-  router.post('/templates/import', 
-    isAuthenticated, 
+  router.post('/templates/import',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const importData = req.body;
-        
+
         // Validate import data
         if (!importData.name || !importData.aiPrompt) {
-          return res.status(400).json({ 
-            message: 'Invalid template data. Required fields: name, aiPrompt' 
+          return res.status(400).json({
+            message: 'Invalid template data. Required fields: name, aiPrompt'
           });
         }
-        
+
         // Create template from import
         const template = await storage.createContentTemplate({
           userId,
@@ -285,7 +285,7 @@ export function registerTemplateRoutes(router: Router) {
           isActive: false, // Imported templates start inactive
           isPublic: false,
         });
-        
+
         res.status(201).json({
           success: true,
           template,

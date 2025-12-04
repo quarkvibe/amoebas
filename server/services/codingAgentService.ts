@@ -86,6 +86,9 @@ When writing code:
                             } else if (functionName === 'create_organelle') {
                                 // Handle specialized scaffolding tool
                                 result = await this.createOrganelle(args);
+                            } else if (functionName === 'delete_organelle') {
+                                // Handle destructive tool
+                                result = await organelleService.deleteOrganelle(args.name);
                             } else {
                                 // Handle native file tool
                                 result = await this.executeNativeTool(userId, functionName, args);
@@ -192,6 +195,20 @@ When writing code:
                             description: { type: "string", description: "Description of what it does" },
                         },
                         required: ["name", "description"],
+                    },
+                },
+            },
+            {
+                type: "function",
+                function: {
+                    name: "delete_organelle",
+                    description: "Delete an existing Organelle (Microservice). WARNING: This is destructive.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            name: { type: "string", description: "Name of the organelle to delete" },
+                        },
+                        required: ["name"],
                     },
                 },
             },

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { aiGenerationRateLimit, standardRateLimit, generousRateLimit } from '../middleware/rateLimiter';
 import { contentGenerationService } from '../services/contentGenerationService';
 import { deliveryService } from '../services/deliveryService';
@@ -12,20 +12,20 @@ import { storage } from '../storage';
  */
 
 export function registerContentRoutes(router: Router) {
-  
+
   // Generate content from template
-  router.post('/content/generate', 
-    isAuthenticated, 
+  router.post('/content/generate',
+    isAuthenticated,
     aiGenerationRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { templateId, variables, credentialId } = req.body;
-        
+
         if (!templateId) {
           return res.status(400).json({ message: 'templateId is required' });
         }
-        
+
         // Verify template exists and user owns it
         const template = await storage.getContentTemplate(templateId, userId);
         if (!template) {
@@ -39,7 +39,7 @@ export function registerContentRoutes(router: Router) {
           variables: variables || {},
           credentialId,
         });
-        
+
         // Store generated content
         const generatedContent = await storage.createGeneratedContent({
           templateId,
@@ -57,7 +57,7 @@ export function registerContentRoutes(router: Router) {
             templateId,
           });
 
-          return res.json({ 
+          return res.json({
             success: true,
             contentId: generatedContent.id,
             templateName: template.name,
@@ -83,29 +83,29 @@ export function registerContentRoutes(router: Router) {
         }
       } catch (error) {
         console.error('Error generating content:', error);
-        res.status(500).json({ 
-          message: 'Failed to generate content', 
-          error: error instanceof Error ? error.message : 'Unknown error' 
+        res.status(500).json({
+          message: 'Failed to generate content',
+          error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
   );
 
   // Get generated content by ID
-  router.get('/content/:id', 
-    isAuthenticated, 
+  router.get('/content/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         const content = await storage.getGeneratedContentById(id, userId);
-        
+
         if (!content) {
           return res.status(404).json({ message: 'Content not found' });
         }
-        
+
         res.json(content);
       } catch (error) {
         console.error('Error fetching content:', error);
@@ -115,8 +115,8 @@ export function registerContentRoutes(router: Router) {
   );
 
   // List generated content (paginated)
-  router.get('/content', 
-    isAuthenticated, 
+  router.get('/content',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -124,9 +124,9 @@ export function registerContentRoutes(router: Router) {
         const limit = parseInt(req.query.limit as string) || 20;
         const offset = parseInt(req.query.offset as string) || 0;
         const templateId = req.query.templateId as string | undefined;
-        
+
         const content = await storage.getGeneratedContent(userId, limit);
-        
+
         res.json({
           content,
           pagination: {
@@ -143,22 +143,22 @@ export function registerContentRoutes(router: Router) {
   );
 
   // Delete generated content
-  router.delete('/content/:id', 
-    isAuthenticated, 
+  router.delete('/content/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const content = await storage.getGeneratedContentById(id, userId);
         if (!content) {
           return res.status(404).json({ message: 'Content not found' });
         }
-        
+
         await storage.deleteGeneratedContent(id, userId);
-        
+
         res.json({ success: true, message: 'Content deleted' });
       } catch (error) {
         console.error('Error deleting content:', error);
@@ -168,15 +168,15 @@ export function registerContentRoutes(router: Router) {
   );
 
   // Get content generation statistics
-  router.get('/content/stats/overview', 
-    isAuthenticated, 
+  router.get('/content/stats/overview',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
-        
+
         const stats = await storage.getContentStats(userId);
-        
+
         res.json({
           totalGenerated: stats.total,
           totalTokens: stats.tokens,
@@ -192,36 +192,36 @@ export function registerContentRoutes(router: Router) {
   );
 
   // Regenerate content (uses same template and variables)
-  router.post('/content/:id/regenerate', 
-    isAuthenticated, 
+  router.post('/content/:id/regenerate',
+    isAuthenticated,
     aiGenerationRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Get original content
         const originalContent = await storage.getGeneratedContentById(id, userId);
         if (!originalContent) {
           return res.status(404).json({ message: 'Original content not found' });
         }
-        
+
         // Get template
         const template = await storage.getContentTemplate(originalContent.templateId!, userId);
         if (!template) {
           return res.status(404).json({ message: 'Template no longer exists' });
         }
-        
+
         // Extract variables from original metadata
         const variables = (originalContent.metadata as any)?.variables || {};
-        
+
         // Generate new content
         const generationResult = await contentGenerationService.generate({
           templateId: originalContent.templateId!,
           userId,
           variables,
         });
-        
+
         // Store as new content
         const newContent = await storage.createGeneratedContent({
           templateId: originalContent.templateId!,
@@ -232,7 +232,7 @@ export function registerContentRoutes(router: Router) {
             regeneratedFrom: id,
           },
         });
-        
+
         res.json({
           success: true,
           contentId: newContent.id,

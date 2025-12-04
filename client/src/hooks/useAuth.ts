@@ -31,10 +31,43 @@ export function useAuth() {
     }
   });
 
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: any) => {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentials),
+      });
+
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(error);
+      }
+
+      return res.json();
+    },
+    onSuccess: (user: any) => {
+      queryClient.setQueryData(["/api/auth/user"], user);
+      toast({
+        title: "Logged in",
+        description: "Welcome back!",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Login failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     user,
     isLoading,
     isAuthenticated: !!user,
+    loginMutation,
+    logoutMutation,
     logout: () => logoutMutation.mutate(),
   };
 }

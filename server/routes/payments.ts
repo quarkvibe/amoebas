@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { strictRateLimit, standardRateLimit } from '../middleware/rateLimiter';
 import { validateBody } from '../middleware/validation';
 import { createCheckoutSchema, createSubscriptionCheckoutSchema } from '../validation/monetization';
@@ -12,10 +12,10 @@ import { storage } from '../storage';
  */
 
 export function registerPaymentRoutes(router: Router) {
-  
+
   // Create Stripe checkout session for $3.50 license
-  router.post('/payments/checkout/license', 
-    isAuthenticated, 
+  router.post('/payments/checkout/license',
+    isAuthenticated,
     strictRateLimit,
     validateBody(createCheckoutSchema),
     async (req: any, res) => {
@@ -31,7 +31,7 @@ export function registerPaymentRoutes(router: Router) {
           cancelUrl,
         });
 
-        res.json({ 
+        res.json({
           success: true,
           url: checkoutUrl,
         });
@@ -43,8 +43,8 @@ export function registerPaymentRoutes(router: Router) {
   );
 
   // Create Stripe checkout session for managed hosting subscription
-  router.post('/payments/checkout/subscription', 
-    isAuthenticated, 
+  router.post('/payments/checkout/subscription',
+    isAuthenticated,
     strictRateLimit,
     validateBody(createSubscriptionCheckoutSchema),
     async (req: any, res) => {
@@ -61,7 +61,7 @@ export function registerPaymentRoutes(router: Router) {
           cancelUrl,
         });
 
-        res.json({ 
+        res.json({
           success: true,
           url: checkoutUrl,
         });
@@ -80,14 +80,14 @@ export function registerPaymentRoutes(router: Router) {
         const { tier, billingPeriod } = req.body;
         const userId = req.user?.claims?.sub;
         const email = req.user?.claims?.email || req.body.email;
-        
+
         if (!tier || !billingPeriod) {
-          return res.status(400).json({ 
+          return res.status(400).json({
             error: 'Missing required fields',
-            message: 'tier and billingPeriod are required' 
+            message: 'tier and billingPeriod are required'
           });
         }
-        
+
         // Get price ID based on tier and billing period
         const priceIds: Record<string, Record<string, string>> = {
           pro: {
@@ -99,16 +99,16 @@ export function registerPaymentRoutes(router: Router) {
             yearly: process.env.STRIPE_PRICE_BUSINESS_YEARLY || '',
           },
         };
-        
+
         const priceId = priceIds[tier]?.[billingPeriod];
-        
+
         if (!priceId) {
-          return res.status(400).json({ 
+          return res.status(400).json({
             error: 'Invalid tier or billing period',
-            message: `Tier must be 'pro' or 'business', period must be 'monthly' or 'yearly'` 
+            message: `Tier must be 'pro' or 'business', period must be 'monthly' or 'yearly'`
           });
         }
-        
+
         // Create Stripe checkout session
         const checkoutUrl = await stripeService.createSubscriptionCheckoutSession({
           userId: userId || 'guest',
@@ -118,13 +118,13 @@ export function registerPaymentRoutes(router: Router) {
           successUrl: process.env.STRIPE_SUCCESS_URL || `${req.headers.origin}/dashboard?subscribed=true`,
           cancelUrl: process.env.STRIPE_CANCEL_URL || `${req.headers.origin}/pricing`,
         });
-        
+
         res.json({ url: checkoutUrl });
       } catch (error: any) {
         console.error('Error creating subscription checkout:', error);
-        res.status(500).json({ 
+        res.status(500).json({
           error: 'Checkout failed',
-          message: error.message || 'Failed to create checkout session' 
+          message: error.message || 'Failed to create checkout session'
         });
       }
     }
@@ -138,11 +138,11 @@ export function registerPaymentRoutes(router: Router) {
       try {
         const userId = req.user.claims.sub;
         const user = await storage.getUser(userId);
-        
+
         if (!user) {
           return res.status(404).json({ error: 'User not found' });
         }
-        
+
         res.json({
           tier: user.subscriptionTier || 'free',
           status: user.subscriptionStatus || 'active',
@@ -167,19 +167,19 @@ export function registerPaymentRoutes(router: Router) {
       try {
         const userId = req.user.claims.sub;
         const user = await storage.getUser(userId);
-        
+
         if (!user?.stripeCustomerId) {
-          return res.status(400).json({ 
+          return res.status(400).json({
             error: 'No subscription',
-            message: 'You do not have an active subscription' 
+            message: 'You do not have an active subscription'
           });
         }
-        
+
         const portalUrl = await stripeService.createCustomerPortalSession(
           user.stripeCustomerId,
           req.body.returnUrl || `${req.headers.origin}/dashboard/billing`
         );
-        
+
         res.json({ url: portalUrl });
       } catch (error: any) {
         console.error('Error creating portal session:', error);
@@ -189,8 +189,8 @@ export function registerPaymentRoutes(router: Router) {
   );
 
   // Get user's payment history
-  router.get('/payments', 
-    isAuthenticated, 
+  router.get('/payments',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {

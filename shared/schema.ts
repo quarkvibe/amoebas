@@ -30,11 +30,13 @@ export const sessions = pgTable(
 // Users table (required for Replit Auth)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
+  username: varchar("username").unique().notNull(),
+  password: text("password").notNull(),
+  email: varchar("email"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  
+
   // Subscription fields (v2.0 - hybrid freemium model)
   subscriptionTier: varchar("subscription_tier", { length: 50 }).default('free'), // 'free', 'pro', 'business', 'enterprise'
   subscriptionStatus: varchar("subscription_status", { length: 50 }).default('active'), // 'active', 'canceled', 'past_due', 'trialing', 'paused'
@@ -43,21 +45,12 @@ export const users = pgTable("users", {
   subscriptionStartDate: timestamp("subscription_start_date"),
   subscriptionEndDate: timestamp("subscription_end_date"),
   subscriptionCanceledAt: timestamp("subscription_canceled_at"),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// =============================================================================
-// LEGACY EMAIL CAMPAIGN SYSTEM - REMOVED
-// =============================================================================
-// Previous version of this codebase was an email campaign management system.
-// Amoeba is an AI content generation platform that uses:
-// - contentTemplates (instead of campaigns)
-// - outputChannels (for email delivery among other channels)
-// - scheduledJobs (for automation)
-// - integrationLogs (for delivery tracking)
-// =============================================================================
+
 
 // Agent conversations
 export const agentConversations = pgTable("agent_conversations", {
@@ -914,6 +907,12 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions);
 export const insertManagedInstanceSchema = createInsertSchema(managedInstances);
 export const insertPaymentSchema = createInsertSchema(payments);
 
+export const insertPhoneServiceCredentialSchema = createInsertSchema(phoneServiceCredentials).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Relations for monetization tables
 export const licensesRelations = relations(licenses, ({ one }) => ({
   user: one(users, {
@@ -988,3 +987,6 @@ export type ManagedInstance = typeof managedInstances.$inferSelect;
 export type InsertManagedInstance = z.infer<typeof insertManagedInstanceSchema>;
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+
+export type PhoneServiceCredential = typeof phoneServiceCredentials.$inferSelect;
+export type InsertPhoneServiceCredential = z.infer<typeof insertPhoneServiceCredentialSchema>;

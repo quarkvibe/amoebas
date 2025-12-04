@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { standardRateLimit, strictRateLimit } from '../middleware/rateLimiter';
 import { storage } from '../storage';
 
@@ -9,20 +9,20 @@ import { storage } from '../storage';
  */
 
 export function registerUserRoutes(router: Router) {
-  
+
   // Get current user profile
-  router.get('/users/me', 
-    isAuthenticated, 
+  router.get('/users/me',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const user = await storage.getUser(userId);
-        
+
         if (!user) {
           return res.status(404).json({ message: 'User not found' });
         }
-        
+
         res.json({
           id: user.id,
           email: user.email,
@@ -39,24 +39,24 @@ export function registerUserRoutes(router: Router) {
   );
 
   // Update user profile
-  router.put('/users/me', 
-    isAuthenticated, 
+  router.put('/users/me',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { firstName, lastName, profileImageUrl } = req.body;
-        
+
         const updatedUser = await storage.updateUser(userId, {
           firstName: firstName || undefined,
           lastName: lastName || undefined,
           profileImageUrl: profileImageUrl || undefined,
         });
-        
+
         if (!updatedUser) {
           return res.status(404).json({ message: 'User not found' });
         }
-        
+
         res.json({
           success: true,
           user: {
@@ -75,15 +75,15 @@ export function registerUserRoutes(router: Router) {
   );
 
   // Get user statistics
-  router.get('/users/me/stats', 
-    isAuthenticated, 
+  router.get('/users/me/stats',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
-        
+
         const stats = await storage.getUserStats(userId);
-        
+
         res.json({
           userId,
           templates: {
@@ -115,26 +115,26 @@ export function registerUserRoutes(router: Router) {
   );
 
   // Delete user account
-  router.delete('/users/me', 
-    isAuthenticated, 
+  router.delete('/users/me',
+    isAuthenticated,
     strictRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { confirm } = req.body;
-        
+
         if (confirm !== 'DELETE') {
-          return res.status(400).json({ 
-            message: 'Confirmation required. Send { "confirm": "DELETE" } to proceed' 
+          return res.status(400).json({
+            message: 'Confirmation required. Send { "confirm": "DELETE" } to proceed'
           });
         }
-        
+
         // Delete user and all related data (cascade delete)
         await storage.deleteUser(userId);
-        
-        res.json({ 
-          success: true, 
-          message: 'User account deleted' 
+
+        res.json({
+          success: true,
+          message: 'User account deleted'
         });
       } catch (error) {
         console.error('Error deleting user account:', error);
@@ -144,13 +144,13 @@ export function registerUserRoutes(router: Router) {
   );
 
   // Export user data (GDPR compliance)
-  router.get('/users/me/export', 
-    isAuthenticated, 
+  router.get('/users/me/export',
+    isAuthenticated,
     strictRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
-        
+
         // Gather all user data
         const user = await storage.getUser(userId);
         const templates = await storage.getContentTemplates(userId);
@@ -159,7 +159,7 @@ export function registerUserRoutes(router: Router) {
         const outputs = await storage.getOutputChannels(userId);
         const schedules = await storage.getScheduledJobs(userId);
         const licenses = await storage.getUserLicenses(userId);
-        
+
         const exportData = {
           user: {
             id: user?.id,
@@ -178,7 +178,7 @@ export function registerUserRoutes(router: Router) {
           exportedAt: new Date().toISOString(),
           version: '1.0',
         };
-        
+
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Content-Disposition', `attachment; filename="amoeba-export-${userId}-${Date.now()}.json"`);
         res.json(exportData);

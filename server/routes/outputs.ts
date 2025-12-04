@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { standardRateLimit, generousRateLimit, strictRateLimit } from '../middleware/rateLimiter';
 import { insertOutputChannelSchema } from '@shared/schema';
 import { storage } from '../storage';
@@ -11,54 +11,54 @@ import { storage } from '../storage';
  */
 
 export function registerOutputRoutes(router: Router) {
-  
+
   // Create new output channel
-  router.post('/outputs', 
-    isAuthenticated, 
+  router.post('/outputs',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
-        
+
         // Validate request body
         const validatedData = insertOutputChannelSchema.parse({
           ...req.body,
           userId,
         });
-        
+
         const output = await storage.createOutputChannel(validatedData);
-        
+
         res.status(201).json({
           success: true,
           output,
         });
       } catch (error: any) {
         console.error('Error creating output channel:', error);
-        
+
         if (error.name === 'ZodError') {
-          return res.status(400).json({ 
-            message: 'Validation failed', 
-            errors: error.errors 
+          return res.status(400).json({
+            message: 'Validation failed',
+            errors: error.errors
           });
         }
-        
+
         res.status(500).json({ message: 'Failed to create output channel' });
       }
     }
   );
 
   // List output channels
-  router.get('/outputs', 
-    isAuthenticated, 
+  router.get('/outputs',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const type = req.query.type as string | undefined;
         const includeInactive = req.query.includeInactive === 'true';
-        
+
         const outputs = await storage.getOutputChannels(userId);
-        
+
         res.json({ outputs });
       } catch (error) {
         console.error('Error listing output channels:', error);
@@ -68,20 +68,20 @@ export function registerOutputRoutes(router: Router) {
   );
 
   // Get single output channel
-  router.get('/outputs/:id', 
-    isAuthenticated, 
+  router.get('/outputs/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         const output = await storage.getOutputChannel(id, userId);
-        
+
         if (!output) {
           return res.status(404).json({ message: 'Output channel not found' });
         }
-        
+
         res.json(output);
       } catch (error) {
         console.error('Error fetching output channel:', error);
@@ -91,23 +91,23 @@ export function registerOutputRoutes(router: Router) {
   );
 
   // Update output channel
-  router.put('/outputs/:id', 
-    isAuthenticated, 
+  router.put('/outputs/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const existingOutput = await storage.getOutputChannel(id, userId);
         if (!existingOutput) {
           return res.status(404).json({ message: 'Output channel not found' });
         }
-        
+
         // Update output channel
         const updatedOutput = await storage.updateOutputChannel(id, userId, req.body);
-        
+
         res.json({
           success: true,
           output: updatedOutput,
@@ -120,22 +120,22 @@ export function registerOutputRoutes(router: Router) {
   );
 
   // Delete output channel
-  router.delete('/outputs/:id', 
-    isAuthenticated, 
+  router.delete('/outputs/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const output = await storage.getOutputChannel(id, userId);
         if (!output) {
           return res.status(404).json({ message: 'Output channel not found' });
         }
-        
+
         await storage.deleteOutputChannel(id, userId);
-        
+
         res.json({ success: true, message: 'Output channel deleted' });
       } catch (error) {
         console.error('Error deleting output channel:', error);
@@ -145,25 +145,25 @@ export function registerOutputRoutes(router: Router) {
   );
 
   // Test output channel
-  router.post('/outputs/:id/test', 
-    isAuthenticated, 
+  router.post('/outputs/:id/test',
+    isAuthenticated,
     strictRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
         const { testContent } = req.body;
-        
+
         const output = await storage.getOutputChannel(id, userId);
         if (!output) {
           return res.status(404).json({ message: 'Output channel not found' });
         }
-        
+
         // Test delivery with sample content
         const content = testContent || 'This is a test message from Amoeba.';
-        
+
         // TODO: Implement actual test delivery via deliveryService
-        
+
         res.json({
           success: true,
           message: `Test delivery to ${output.type} channel successful`,
@@ -171,29 +171,29 @@ export function registerOutputRoutes(router: Router) {
         });
       } catch (error: any) {
         console.error('Error testing output channel:', error);
-        res.status(500).json({ 
+        res.status(500).json({
           success: false,
-          message: error.message || 'Output channel test failed' 
+          message: error.message || 'Output channel test failed'
         });
       }
     }
   );
 
   // Get output channel statistics
-  router.get('/outputs/:id/stats', 
-    isAuthenticated, 
+  router.get('/outputs/:id/stats',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const output = await storage.getOutputChannel(id, userId);
         if (!output) {
           return res.status(404).json({ message: 'Output channel not found' });
         }
-        
+
         res.json({
           id,
           name: output.name,
@@ -211,8 +211,8 @@ export function registerOutputRoutes(router: Router) {
   );
 
   // Get available output types and their configuration schemas
-  router.get('/outputs/types/available', 
-    isAuthenticated, 
+  router.get('/outputs/types/available',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -261,7 +261,7 @@ export function registerOutputRoutes(router: Router) {
             },
           },
         ];
-        
+
         res.json({ types });
       } catch (error) {
         console.error('Error fetching output types:', error);
@@ -271,36 +271,36 @@ export function registerOutputRoutes(router: Router) {
   );
 
   // Link output channel to template
-  router.post('/outputs/:id/link-template', 
-    isAuthenticated, 
+  router.post('/outputs/:id/link-template',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
         const { templateId } = req.body;
-        
+
         if (!templateId) {
           return res.status(400).json({ message: 'templateId is required' });
         }
-        
+
         // Verify ownership of both
         const output = await storage.getOutputChannel(id, userId);
         if (!output) {
           return res.status(404).json({ message: 'Output channel not found' });
         }
-        
+
         const template = await storage.getContentTemplate(templateId, userId);
         if (!template) {
           return res.status(404).json({ message: 'Template not found' });
         }
-        
+
         // Create link
         await storage.linkTemplateOutputChannel(templateId, id);
-        
-        res.json({ 
-          success: true, 
-          message: 'Output channel linked to template' 
+
+        res.json({
+          success: true,
+          message: 'Output channel linked to template'
         });
       } catch (error) {
         console.error('Error linking output channel:', error);
@@ -310,26 +310,26 @@ export function registerOutputRoutes(router: Router) {
   );
 
   // Unlink output channel from template
-  router.delete('/outputs/:id/unlink-template/:templateId', 
-    isAuthenticated, 
+  router.delete('/outputs/:id/unlink-template/:templateId',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id, templateId } = req.params;
-        
+
         // Verify ownership
         const output = await storage.getOutputChannel(id, userId);
         if (!output) {
           return res.status(404).json({ message: 'Output channel not found' });
         }
-        
+
         // Unlink
         await storage.unlinkTemplateOutputChannel(templateId, id);
-        
-        res.json({ 
-          success: true, 
-          message: 'Output channel unlinked from template' 
+
+        res.json({
+          success: true,
+          message: 'Output channel unlinked from template'
         });
       } catch (error) {
         console.error('Error unlinking output channel:', error);
@@ -339,23 +339,23 @@ export function registerOutputRoutes(router: Router) {
   );
 
   // Get delivery logs for output channel
-  router.get('/outputs/:id/logs', 
-    isAuthenticated, 
+  router.get('/outputs/:id/logs',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
         const limit = parseInt(req.query.limit as string) || 50;
-        
+
         // Verify ownership
         const output = await storage.getOutputChannel(id, userId);
         if (!output) {
           return res.status(404).json({ message: 'Output channel not found' });
         }
-        
+
         const logs = await storage.getDeliveryLogs(userId, limit);
-        
+
         res.json({ logs });
       } catch (error) {
         console.error('Error fetching delivery logs:', error);

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { standardRateLimit, strictRateLimit } from '../middleware/rateLimiter';
 import { storage } from '../storage';
 
@@ -9,20 +9,20 @@ import { storage } from '../storage';
  */
 
 export function registerSubscriptionRoutes(router: Router) {
-  
+
   // Get current user subscription
-  router.get('/subscriptions/current', 
-    isAuthenticated, 
+  router.get('/subscriptions/current',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const subscription = await storage.getUserSubscription(userId);
-        
+
         if (!subscription) {
           return res.json({ subscription: null });
         }
-        
+
         res.json({ subscription });
       } catch (error: any) {
         console.error('Error fetching subscription:', error);
@@ -32,23 +32,23 @@ export function registerSubscriptionRoutes(router: Router) {
   );
 
   // Cancel subscription (cancels at period end)
-  router.post('/subscriptions/cancel', 
-    isAuthenticated, 
+  router.post('/subscriptions/cancel',
+    isAuthenticated,
     strictRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const subscription = await storage.getUserSubscription(userId);
-        
+
         if (!subscription) {
           return res.status(404).json({ message: 'No active subscription found' });
         }
-        
+
         await storage.updateSubscriptionCancelAtPeriodEnd(subscription.id, true);
-        
-        res.json({ 
-          success: true, 
-          message: 'Subscription will cancel at end of billing period' 
+
+        res.json({
+          success: true,
+          message: 'Subscription will cancel at end of billing period'
         });
       } catch (error: any) {
         console.error('Error canceling subscription:', error);
@@ -58,23 +58,23 @@ export function registerSubscriptionRoutes(router: Router) {
   );
 
   // Reactivate cancelled subscription
-  router.post('/subscriptions/reactivate', 
-    isAuthenticated, 
+  router.post('/subscriptions/reactivate',
+    isAuthenticated,
     strictRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const subscription = await storage.getUserSubscription(userId);
-        
+
         if (!subscription) {
           return res.status(404).json({ message: 'No subscription found' });
         }
-        
+
         await storage.updateSubscriptionCancelAtPeriodEnd(subscription.id, false);
-        
-        res.json({ 
-          success: true, 
-          message: 'Subscription reactivated' 
+
+        res.json({
+          success: true,
+          message: 'Subscription reactivated'
         });
       } catch (error: any) {
         console.error('Error reactivating subscription:', error);

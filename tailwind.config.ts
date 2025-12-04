@@ -154,27 +154,20 @@ export default {
     },
   },
   plugins: [
-    require("tailwindcss-animate"), 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require("tailwindcss-animate"),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require("@tailwindcss/typography"),
-    function({ addUtilities }: { addUtilities: any }) {
+    function ({ addUtilities }: { addUtilities: any }) {
       const newUtilities = {
-        '.animate-in': {
-          'animation-fill-mode': 'both',
-        },
-        '.slide-in-from-top-1': {
-          animation: 'slide-in-from-top 0.3s ease-out',
-        },
-        '.slide-in-from-top-2': {
-          animation: 'slide-in-from-top 0.4s ease-out',
-        },
-        '.fade-in': {
-          animation: 'fade-in 0.3s ease-out',
-        },
-        '.scale-in': {
-          animation: 'scale-in 0.2s ease-out',
+        ".no-scrollbar": {
+          "scrollbar-width": "none",
+          "&::-webkit-scrollbar": {
+            display: "none",
+          },
         },
       };
       addUtilities(newUtilities);
-    }
+    },
   ],
 } satisfies Config;

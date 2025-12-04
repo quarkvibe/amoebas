@@ -215,7 +215,7 @@ export class ContentGenerationService {
       
       let totalTokens = 0;
       let toolCallCount = 0;
-      let toolsUsed: string[] = [];
+      const toolsUsed: string[] = [];
       
       // Initial AI call
       let response = await client.chat.completions.create({
@@ -350,7 +350,7 @@ export class ContentGenerationService {
       let totalInputTokens = 0;
       let totalOutputTokens = 0;
       let toolCallCount = 0;
-      let toolsUsed: string[] = [];
+      const toolsUsed: string[] = [];
       
       // Initial API call
       let response = await fetch('https://api.anthropic.com/v1/messages', {

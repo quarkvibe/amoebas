@@ -35,6 +35,8 @@ import CodeModification from "@/components/dashboard/CodeModification";
 import { CommandPalette } from "@/components/dashboard/CommandPalette";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { DashboardCustomizer } from "@/components/dashboard/DashboardCustomizer";
+import SocialAutomator from "@/components/organelles/SocialAutomator";
+import ColonyManager from "@/components/dashboard/ColonyManager";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -159,6 +161,10 @@ export default function Dashboard() {
         return <LicenseManagement />;
       case "ollama":
         return <OllamaSetup />;
+      case "social-automator":
+        return <SocialAutomator />;
+      case "colony":
+        return <ColonyManager />;
       default:
         return (
           <div className="space-y-6">

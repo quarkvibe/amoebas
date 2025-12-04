@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { generousRateLimit } from '../middleware/rateLimiter';
 import { storage } from '../storage';
 
@@ -9,7 +9,7 @@ import { storage } from '../storage';
  */
 
 export function registerHealthRoutes(router: Router) {
-  
+
   // Public health check (basic liveness)
   router.get('/health', async (req, res) => {
     try {
@@ -23,8 +23,8 @@ export function registerHealthRoutes(router: Router) {
       });
     } catch (error) {
       console.error('Error checking health:', error);
-      res.status(500).json({ 
-        status: 'error', 
+      res.status(500).json({
+        status: 'error',
         message: 'Health check failed',
         timestamp: new Date().toISOString()
       });
@@ -32,7 +32,7 @@ export function registerHealthRoutes(router: Router) {
   });
 
   // Detailed readiness check (authenticated, for dashboard)
-  router.get('/system/readiness', 
+  router.get('/system/readiness',
     isAuthenticated,
     generousRateLimit,
     async (req, res) => {

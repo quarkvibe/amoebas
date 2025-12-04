@@ -2,7 +2,8 @@ import { storage } from '../storage';
 import { activityMonitor } from './activityMonitor';
 import { contentGenerationService } from './contentGenerationService';
 import { deliveryService } from './deliveryService';
-const parser = require('cron-parser');
+import cronParser from 'cron-parser';
+const parser = cronParser as any;
 
 interface ScheduledJobState {
   jobId: string;
@@ -61,7 +62,7 @@ export class CronService {
   private async refreshScheduledJobs(): Promise<void> {
     try {
       const jobs = await storage.getActiveScheduledJobs();
-      
+
       // Schedule new jobs
       for (const job of jobs) {
         if (!this.scheduledJobs.has(job.id)) {
@@ -90,19 +91,19 @@ export class CronService {
       // Parse cron expression
       const cronExpression = job.cronExpression;
       const timezone = job.timezone || 'UTC';
-      
+
       const interval = parser.parseExpression(cronExpression, {
         currentDate: new Date(),
         tz: timezone
       });
-      
+
       const nextRun = interval.next().toDate();
       const timeUntilRun = nextRun.getTime() - Date.now();
 
       // Schedule the job
       const timeout = setTimeout(async () => {
         await this.executeJob(job);
-        
+
         // Reschedule for next occurrence
         this.unscheduleJob(job.id);
         await this.scheduleJob(job);
@@ -143,15 +144,15 @@ export class CronService {
    */
   private async executeJob(job: any): Promise<void> {
     const startTime = Date.now();
-    
+
     try {
       console.log(`🔄 Executing job "${job.name}" (${job.id})...`);
       activityMonitor.logJobExecution(job.id, job.name, 'started');
-      
+
       // Update job status to running
       await storage.updateScheduledJobStatus(job.id, 'running');
       await storage.updateScheduledJobLastRun(job.id, new Date());
-      
+
       // Get the content template for this job
       const template = await storage.getContentTemplateById(job.templateId);
       if (!template) {
@@ -193,17 +194,17 @@ export class CronService {
       // Update job status to success
       await storage.updateScheduledJobStatus(job.id, 'success');
       await storage.incrementScheduledJobSuccessCount(job.id);
-      
+
       const duration = Date.now() - startTime;
       console.log(`✅ Job "${job.name}" completed in ${duration}ms`);
       activityMonitor.logJobExecution(job.id, job.name, 'completed', duration);
       activityMonitor.logContentGeneration(template.name, 'completed');
-      
+
     } catch (error: any) {
       console.error(`❌ Job "${job.name}" failed:`, error);
       activityMonitor.logJobExecution(job.id, job.name, 'failed');
       activityMonitor.logError(error, `Job: ${job.name}`);
-      
+
       // Update job status to error
       await storage.updateScheduledJobStatus(job.id, 'error', error.message);
       await storage.incrementScheduledJobErrorCount(job.id);
@@ -239,7 +240,7 @@ export class CronService {
    */
   async triggerJob(jobId: string): Promise<any> {
     console.log(`🔄 Manually triggering job ${jobId}...`);
-    
+
     try {
       const job = await storage.getScheduledJobById(jobId);
       if (!job) {

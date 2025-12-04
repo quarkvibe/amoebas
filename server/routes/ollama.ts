@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { strictRateLimit, generousRateLimit } from '../middleware/rateLimiter';
 import { validateBody } from '../middleware/validation';
 import { pullModelSchema } from '../validation/ollama';
@@ -12,10 +12,10 @@ import { activityMonitor } from '../services/activityMonitor';
  */
 
 export function registerOllamaRoutes(router: Router) {
-  
+
   // Check Ollama health (is it running?)
-  router.get('/ollama/health', 
-    isAuthenticated, 
+  router.get('/ollama/health',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -30,8 +30,8 @@ export function registerOllamaRoutes(router: Router) {
   );
 
   // List installed Ollama models
-  router.get('/ollama/models', 
-    isAuthenticated, 
+  router.get('/ollama/models',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -46,8 +46,8 @@ export function registerOllamaRoutes(router: Router) {
   );
 
   // Get recommended models for Amoeba
-  router.get('/ollama/recommended', 
-    isAuthenticated, 
+  router.get('/ollama/recommended',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -61,8 +61,8 @@ export function registerOllamaRoutes(router: Router) {
   );
 
   // Get Ollama setup instructions
-  router.get('/ollama/setup', 
-    isAuthenticated, 
+  router.get('/ollama/setup',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -76,8 +76,8 @@ export function registerOllamaRoutes(router: Router) {
   );
 
   // Pull an Ollama model (long-running background operation)
-  router.post('/ollama/pull', 
-    isAuthenticated, 
+  router.post('/ollama/pull',
+    isAuthenticated,
     strictRateLimit,
     validateBody(pullModelSchema),
     async (req: any, res) => {
@@ -85,8 +85,8 @@ export function registerOllamaRoutes(router: Router) {
         const { modelName, host } = req.body;
 
         // Acknowledge immediately (this takes minutes)
-        res.json({ 
-          success: true, 
+        res.json({
+          success: true,
           message: `Started pulling model "${modelName}". This may take several minutes depending on model size.`,
         });
 
@@ -105,8 +105,8 @@ export function registerOllamaRoutes(router: Router) {
   );
 
   // Delete an Ollama model
-  router.delete('/ollama/models/:modelName', 
-    isAuthenticated, 
+  router.delete('/ollama/models/:modelName',
+    isAuthenticated,
     strictRateLimit,
     async (req: any, res) => {
       try {
@@ -114,7 +114,7 @@ export function registerOllamaRoutes(router: Router) {
         const host = req.query.host as string | undefined;
 
         await ollamaService.deleteModel(modelName, host);
-        
+
         activityMonitor.logActivity('info', `🗑️  Ollama model "${modelName}" deleted`);
         res.json({ success: true, message: `Model "${modelName}" deleted successfully` });
       } catch (error: any) {

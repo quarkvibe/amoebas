@@ -18,7 +18,9 @@ export const pullModelSchema = z.object({
   modelName: z.string()
     .min(1, 'Model name is required')
     .max(100, 'Model name is too long')
-    .regex(/^[a-zA-Z0-9_\-:\.]+$/, 'Model name contains invalid characters'),
+    .regex(/^[a-zA-Z0-9_.-]+$/, {
+      message: "Model name can only contain letters, numbers, underscores, dots, and dashes"
+    }),
   host: z.string()
     .url('Host must be a valid URL')
     .regex(/^https?:\/\//, 'Host must start with http:// or https://')

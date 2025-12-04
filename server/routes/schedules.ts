@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../replitAuth';
+import { isAuthenticated } from '../middleware/auth';
 import { standardRateLimit, generousRateLimit, strictRateLimit } from '../middleware/rateLimiter';
 import { insertScheduledJobSchema } from '@shared/schema';
 import { storage } from '../storage';
@@ -12,62 +12,62 @@ import { activityMonitor } from '../services/activityMonitor';
  */
 
 export function registerScheduleRoutes(router: Router) {
-  
+
   // Create new scheduled job
-  router.post('/schedules', 
-    isAuthenticated, 
+  router.post('/schedules',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
-        
+
         // Validate request body
         const validatedData = insertScheduledJobSchema.parse({
           ...req.body,
           userId,
         });
-        
+
         // Verify template ownership
         const template = await storage.getContentTemplate(validatedData.templateId, userId);
         if (!template) {
           return res.status(404).json({ message: 'Template not found' });
         }
-        
+
         const job = await storage.createScheduledJob(validatedData);
-        
+
         activityMonitor.logActivity('info', `📅 Scheduled job created: ${job.name}`);
-        
+
         res.status(201).json({
           success: true,
           job,
         });
       } catch (error: any) {
         console.error('Error creating scheduled job:', error);
-        
+
         if (error.name === 'ZodError') {
-          return res.status(400).json({ 
-            message: 'Validation failed', 
-            errors: error.errors 
+          return res.status(400).json({
+            message: 'Validation failed',
+            errors: error.errors
           });
         }
-        
+
         res.status(500).json({ message: 'Failed to create scheduled job' });
       }
     }
   );
 
   // List scheduled jobs
-  router.get('/schedules', 
-    isAuthenticated, 
+  router.get('/schedules',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const includeInactive = req.query.includeInactive === 'true';
         const templateId = req.query.templateId as string | undefined;
-        
+
         const jobs = await storage.getScheduledJobs(userId);
-        
+
         res.json({ jobs });
       } catch (error) {
         console.error('Error listing scheduled jobs:', error);
@@ -77,20 +77,20 @@ export function registerScheduleRoutes(router: Router) {
   );
 
   // Get single scheduled job
-  router.get('/schedules/:id', 
-    isAuthenticated, 
+  router.get('/schedules/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         const job = await storage.getScheduledJob(id, userId);
-        
+
         if (!job) {
           return res.status(404).json({ message: 'Scheduled job not found' });
         }
-        
+
         res.json(job);
       } catch (error) {
         console.error('Error fetching scheduled job:', error);
@@ -100,20 +100,20 @@ export function registerScheduleRoutes(router: Router) {
   );
 
   // Update scheduled job
-  router.put('/schedules/:id', 
-    isAuthenticated, 
+  router.put('/schedules/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const existingJob = await storage.getScheduledJob(id, userId);
         if (!existingJob) {
           return res.status(404).json({ message: 'Scheduled job not found' });
         }
-        
+
         // If templateId is being changed, verify new template ownership
         if (req.body.templateId && req.body.templateId !== existingJob.templateId) {
           const template = await storage.getContentTemplate(req.body.templateId, userId);
@@ -121,16 +121,16 @@ export function registerScheduleRoutes(router: Router) {
             return res.status(404).json({ message: 'Template not found' });
           }
         }
-        
+
         // Update job
         const updatedJob = await storage.updateScheduledJob(id, userId, req.body);
-        
+
         if (!updatedJob) {
           return res.status(404).json({ message: 'Scheduled job not found' });
         }
-        
+
         activityMonitor.logActivity('info', `📅 Scheduled job updated: ${updatedJob.name}`);
-        
+
         res.json({
           success: true,
           job: updatedJob,
@@ -143,24 +143,24 @@ export function registerScheduleRoutes(router: Router) {
   );
 
   // Delete scheduled job
-  router.delete('/schedules/:id', 
-    isAuthenticated, 
+  router.delete('/schedules/:id',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const job = await storage.getScheduledJob(id, userId);
         if (!job) {
           return res.status(404).json({ message: 'Scheduled job not found' });
         }
-        
+
         await storage.deleteScheduledJob(id, userId);
-        
+
         activityMonitor.logActivity('info', `📅 Scheduled job deleted: ${job.name}`);
-        
+
         res.json({ success: true, message: 'Scheduled job deleted' });
       } catch (error) {
         console.error('Error deleting scheduled job:', error);
@@ -170,34 +170,34 @@ export function registerScheduleRoutes(router: Router) {
   );
 
   // Enable/disable scheduled job
-  router.post('/schedules/:id/toggle', 
-    isAuthenticated, 
+  router.post('/schedules/:id/toggle',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const job = await storage.getScheduledJob(id, userId);
         if (!job) {
           return res.status(404).json({ message: 'Scheduled job not found' });
         }
-        
+
         // Toggle active state
         const updatedJob = await storage.updateScheduledJob(id, userId, {
           isActive: !job.isActive,
         });
-        
+
         if (!updatedJob) {
           return res.status(404).json({ message: 'Scheduled job not found' });
         }
-        
+
         activityMonitor.logActivity(
-          'info', 
+          'info',
           `📅 Scheduled job ${updatedJob.isActive ? 'enabled' : 'disabled'}: ${updatedJob.name}`
         );
-        
+
         res.json({
           success: true,
           isActive: updatedJob.isActive,
@@ -211,24 +211,24 @@ export function registerScheduleRoutes(router: Router) {
   );
 
   // Run scheduled job immediately (manual trigger)
-  router.post('/schedules/:id/run', 
-    isAuthenticated, 
+  router.post('/schedules/:id/run',
+    isAuthenticated,
     strictRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const job = await storage.getScheduledJob(id, userId);
         if (!job) {
           return res.status(404).json({ message: 'Scheduled job not found' });
         }
-        
+
         // TODO: Trigger job execution via cronService
         // For now, acknowledge the request
         activityMonitor.logActivity('info', `▶️  Manual trigger: ${job.name}`);
-        
+
         res.json({
           success: true,
           message: `Job "${job.name}" triggered manually`,
@@ -242,24 +242,24 @@ export function registerScheduleRoutes(router: Router) {
   );
 
   // Get scheduled job execution history
-  router.get('/schedules/:id/history', 
-    isAuthenticated, 
+  router.get('/schedules/:id/history',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
         const limit = parseInt(req.query.limit as string) || 50;
-        
+
         // Verify ownership
         const job = await storage.getScheduledJob(id, userId);
         if (!job) {
           return res.status(404).json({ message: 'Scheduled job not found' });
         }
-        
+
         const history = await storage.getJobExecutionHistory(id, limit);
-        
-        res.json({ 
+
+        res.json({
           jobId: id,
           jobName: job.name,
           history,
@@ -272,20 +272,20 @@ export function registerScheduleRoutes(router: Router) {
   );
 
   // Get scheduled job statistics
-  router.get('/schedules/:id/stats', 
-    isAuthenticated, 
+  router.get('/schedules/:id/stats',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
         const { id } = req.params;
-        
+
         // Verify ownership
         const job = await storage.getScheduledJob(id, userId);
         if (!job) {
           return res.status(404).json({ message: 'Scheduled job not found' });
         }
-        
+
         res.json({
           id,
           name: job.name,
@@ -305,27 +305,27 @@ export function registerScheduleRoutes(router: Router) {
   );
 
   // Validate cron expression
-  router.post('/schedules/validate-cron', 
-    isAuthenticated, 
+  router.post('/schedules/validate-cron',
+    isAuthenticated,
     standardRateLimit,
     async (req: any, res) => {
       try {
         const { cronExpression } = req.body;
-        
+
         if (!cronExpression) {
           return res.status(400).json({ message: 'cronExpression is required' });
         }
-        
+
         // TODO: Validate cron expression using cron-parser
         // For now, basic validation
         const parts = cronExpression.split(' ');
         if (parts.length < 5 || parts.length > 6) {
-          return res.status(400).json({ 
+          return res.status(400).json({
             valid: false,
             message: 'Invalid cron expression format',
           });
         }
-        
+
         res.json({
           valid: true,
           expression: cronExpression,
@@ -340,8 +340,8 @@ export function registerScheduleRoutes(router: Router) {
   );
 
   // Get cron expression presets
-  router.get('/schedules/presets/common', 
-    isAuthenticated, 
+  router.get('/schedules/presets/common',
+    isAuthenticated,
     generousRateLimit,
     async (req: any, res) => {
       try {
@@ -359,7 +359,7 @@ export function registerScheduleRoutes(router: Router) {
           { name: 'First day of month', expression: '0 0 1 * *', description: 'Runs on the 1st of each month at 00:00' },
           { name: 'Weekdays at 9 AM', expression: '0 9 * * 1-5', description: 'Runs Monday-Friday at 09:00' },
         ];
-        
+
         res.json({ presets });
       } catch (error) {
         console.error('Error fetching cron presets:', error);
