@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import * as machineIdModule from 'node-machine-id';
 import { storage } from '../storage';
+import { cryptoService } from './cryptoService';
 
 const { machineIdSync } = machineIdModule as any;
 
@@ -23,39 +24,59 @@ export class LicenseService {
   private readonly LICENSE_VERSION = 'V1';
   private readonly GRACE_PERIOD_DAYS = 7;
 
-  /**
-   * Generate a unique license key for user after $3.50 payment
-   */
-  async generateLicense(userId: string, paymentId: string): Promise<string> {
-    try {
-      // Generate unique license key
-      const licenseKey = this.createLicenseKey();
+  constructor() {
+    // Ensure crypto keys are ready
+    cryptoService.initLocalKeys().catch(console.error);
+  }
 
-      // Store in database
+  /**
+   * Create a free Community License for personal/dev use
+   * NOW SIGNED LOCALLY
+   */
+  async createCommunityLicense(userId: string): Promise<string> {
+    try {
+      // Check if user already has a license
+      const existing = await storage.getUserLicenses(userId);
+      if (existing.length > 0) {
+        return existing[0].licenseKey;
+      }
+
+      // Create signed payload
+      const payload = JSON.stringify({
+        t: 'COMMUNITY',
+        u: userId,
+        ts: Date.now()
+      });
+
+      const signature = cryptoService.sign(payload);
+      const payloadB64 = Buffer.from(payload).toString('base64');
+
+      // Format: AMEOBA-V1.<PAYLOAD>.<SIGNATURE>
+      const licenseKey = `${this.LICENSE_PREFIX}-${this.LICENSE_VERSION}.${payloadB64}.${signature}`;
+
       await storage.createLicense({
         userId,
         licenseKey,
-        paymentId,
-        status: 'inactive', // Becomes 'active' when user activates it
+        paymentId: 'COMMUNITY_FREE',
+        status: 'inactive',
       });
 
-      console.log(`✅ License generated for user ${userId}: ${licenseKey}`);
-      
+      console.log(`✅ Signed Community License generated for user ${userId}`);
       return licenseKey;
     } catch (error) {
-      console.error('Error generating license:', error);
-      throw new Error('Failed to generate license key');
+      console.error('Error creating community license:', error);
+      throw new Error('Failed to create community license');
     }
   }
 
   /**
-   * Create formatted license key
-   * Format: AMEOBA-V1-XXXX-XXXX-XXXX-XXXX
+   * Generate a unique license key for user after $3.50 payment
+   * (Placeholder for Enterprise/Paid flow - would normally be signed by Cloud Server)
    */
-  private createLicenseKey(): string {
-    const randomPart = crypto.randomBytes(16).toString('hex').toUpperCase();
-    const formatted = randomPart.match(/.{1,4}/g)?.join('-') || randomPart;
-    return `${this.LICENSE_PREFIX}-${this.LICENSE_VERSION}-${formatted}`;
+  async generateLicense(userId: string, paymentId: string): Promise<string> {
+    // For now, we use the same local signing for simplicity in this demo
+    // In production, this would verify a key signed by QuarkVibe's private key
+    return this.createCommunityLicense(userId);
   }
 
   /**
@@ -64,6 +85,15 @@ export class LicenseService {
    */
   async activateLicense(licenseKey: string, userId: string): Promise<LicenseStatus> {
     try {
+      // 1. Verify Signature
+      if (!this.verifyLicenseSignature(licenseKey)) {
+        return {
+          isValid: false,
+          status: 'inactive',
+          message: 'Invalid license signature. Tampering detected.',
+        };
+      }
+
       // Get device fingerprint
       const deviceFingerprint = this.getDeviceFingerprint();
 
@@ -74,7 +104,7 @@ export class LicenseService {
         return {
           isValid: false,
           status: 'inactive',
-          message: 'Invalid license key',
+          message: 'License key not found in registry',
         };
       }
 
@@ -108,7 +138,7 @@ export class LicenseService {
       // Activate license
       await storage.activateLicense(licenseKey, deviceFingerprint);
 
-      console.log(`✅ License activated: ${licenseKey} on device ${deviceFingerprint.substring(0, 8)}...`);
+      console.log(`✅ License activated: ${licenseKey.substring(0, 20)}...`);
 
       return {
         isValid: true,
@@ -126,7 +156,7 @@ export class LicenseService {
 
   /**
    * Validate license on app startup
-   * Checks if license is valid for current device
+   * Checks if license is valid for current device AND has valid signature
    */
   async validateLicense(userId: string): Promise<LicenseStatus> {
     try {
@@ -141,6 +171,15 @@ export class LicenseService {
           isValid: false,
           status: 'inactive',
           message: 'No active license found. Please purchase a license ($3.50).',
+        };
+      }
+
+      // 1. Verify Signature
+      if (!this.verifyLicenseSignature(license.licenseKey)) {
+        return {
+          isValid: false,
+          status: 'inactive',
+          message: 'CRITICAL: License signature invalid.',
         };
       }
 
@@ -175,16 +214,35 @@ export class LicenseService {
       };
     } catch (error) {
       console.error('Error validating license:', error);
-      
+
       // Grace period: Allow operation if last validation was recent
       const gracePeriodMs = this.GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000;
-      // TODO: Check last validation timestamp from cache
-      
+
       return {
         isValid: false,
         status: 'inactive',
         message: 'License validation failed',
       };
+    }
+  }
+
+  /**
+   * Verify the cryptographic signature of a license key
+   */
+  private verifyLicenseSignature(licenseKey: string): boolean {
+    try {
+      const parts = licenseKey.split('.');
+      if (parts.length !== 3) return false; // Expect PREFIX.PAYLOAD.SIGNATURE
+
+      const [prefix, payloadB64, signature] = parts;
+      const payload = Buffer.from(payloadB64, 'base64').toString('utf8');
+
+      // Verify with local public key (for Community)
+      // TODO: In future, check payload type and use Vendor Key for Enterprise
+      return cryptoService.verify(payload, signature);
+    } catch (e) {
+      console.error('Signature verification failed:', e);
+      return false;
     }
   }
 
@@ -226,12 +284,12 @@ export class LicenseService {
   async getUserLicenses(userId: string): Promise<any[]> {
     try {
       const licenses = await storage.getUserLicenses(userId);
-      
+
       // Mask license keys for security (show first 8 and last 4 chars)
       return licenses.map(license => ({
         ...license,
         licenseKey: this.maskLicenseKey(license.licenseKey),
-        deviceFingerprint: license.deviceFingerprint 
+        deviceFingerprint: license.deviceFingerprint
           ? license.deviceFingerprint.substring(0, 8) + '...'
           : null,
       }));
@@ -249,16 +307,16 @@ export class LicenseService {
     try {
       // Get machine ID (persistent hardware-based ID)
       const machineId = machineIdSync(true); // true = original machine ID
-      
+
       // Add hostname for additional uniqueness
       const hostname = require('os').hostname();
-      
+
       // Create fingerprint hash
       const fingerprint = crypto
         .createHash('sha256')
         .update(machineId + hostname)
         .digest('hex');
-      
+
       return fingerprint;
     } catch (error) {
       console.error('Error getting device fingerprint:', error);
@@ -272,10 +330,15 @@ export class LicenseService {
    */
   private maskLicenseKey(licenseKey: string): string {
     if (!licenseKey) return '';
-    
+
+    // Handle new dot-separated format
+    if (licenseKey.includes('.')) {
+      return licenseKey.substring(0, 15) + '...[SIGNED]';
+    }
+
     const parts = licenseKey.split('-');
     if (parts.length < 4) return licenseKey;
-    
+
     return `${parts[0]}-${parts[1]}-${parts[2]}-****-****-${parts[parts.length - 1]}`;
   }
 
@@ -285,10 +348,10 @@ export class LicenseService {
    */
   needsValidation(lastValidatedAt: Date | null): boolean {
     if (!lastValidatedAt) return true;
-    
+
     const now = new Date();
     const hoursSinceValidation = (now.getTime() - lastValidatedAt.getTime()) / (1000 * 60 * 60);
-    
+
     // Validate once per day
     return hoursSinceValidation >= 24;
   }

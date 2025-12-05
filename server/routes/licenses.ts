@@ -13,6 +13,40 @@ import { storage } from '../storage';
 
 export function registerLicenseRoutes(router: Router) {
 
+  // Activate Community License (Free)
+  router.post('/licenses/activate/community',
+    isAuthenticated,
+    strictRateLimit,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.id; // Passport user object has id directly
+
+        // 1. Create the license
+        const licenseKey = await licenseService.createCommunityLicense(userId);
+
+        // 2. Activate it on this device
+        const result = await licenseService.activateLicense(licenseKey, userId);
+
+        if (!result.isValid) {
+          return res.status(400).json({ success: false, message: result.message });
+        }
+
+        res.json({
+          success: true,
+          message: 'Community License activated successfully',
+          license: {
+            key: licenseKey,
+            status: result.status,
+            activatedAt: result.activatedAt,
+          }
+        });
+      } catch (error: any) {
+        console.error('Error activating community license:', error);
+        res.status(500).json({ message: 'Failed to activate community license' });
+      }
+    }
+  );
+
   // Activate license (bind to device)
   router.post('/licenses/activate',
     isAuthenticated,

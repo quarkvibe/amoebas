@@ -45,6 +45,11 @@ export class OrganelleService {
                 path: 'shared/custom',
                 description: 'Shared Custom Types & Utils',
                 permissions: ['read', 'write'],
+            },
+            {
+                path: 'server/routes/socialAutomator.ts',
+                description: 'Social Automator',
+                permissions: ['read', 'write'],
             }
         ];
 

@@ -29,6 +29,13 @@ const OFFICIAL_REGISTRY: RegistryItem[] = [
         description: "A real-time chat room for team collaboration.",
         icon: "MessageSquare",
         scaffoldPrompt: "Create a new organelle named 'TeamChat'. It should be a real-time chat interface. Users can send messages which are broadcast to all connected users. Persist message history to the database."
+    },
+    {
+        id: "social-automator",
+        name: "Social Automator",
+        description: "Automate your social media presence with AI-generated content and scheduling.",
+        icon: "Share2",
+        scaffoldPrompt: "Create a new organelle named 'SocialAutomator'. It should allow users to connect social accounts, generate posts using AI, and schedule them."
     }
 ];
 
