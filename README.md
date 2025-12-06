@@ -41,6 +41,7 @@ Typical cost: **$0.001-0.01 per generation** (paid directly to providers)
 ### 3. Multi-Channel Delivery 📡
 
 Generate once, deliver everywhere:
+
 - **Email** (SendGrid, AWS SES)
 - **SMS** (Twilio)
 - **Voice** (Text-to-speech calls)
@@ -60,7 +61,24 @@ Generate once, deliver everywhere:
 
 ## 🚀 Quick Start (5 Minutes)
 
-### Install & Run
+### Install via NPM (Recommended)
+
+```bash
+# Install globally
+npm install -g amoeba-cli
+
+# Initialize Amoeba
+amoeba init
+
+# Start the server
+amoeba start
+```
+
+Visit **<http://localhost:5000>**
+
+**That's it!** Free tier active immediately. Add your OpenAI key and start generating.
+
+### Install from Source (For Development)
 
 ```bash
 git clone https://github.com/quarkvibe/ameoba_v2.0.git
@@ -69,40 +87,44 @@ npm install
 npm run dev
 ```
 
-Visit **http://localhost:5000**
-
-**That's it.** SQLite database auto-created. Add your OpenAI key. Start generating.
+Visit **<http://localhost:5000>**
 
 ---
 
 ## 📖 Core Features
 
 ### AI Content Generation
+
 - **Multi-Provider**: OpenAI, Anthropic, Cohere, Ollama (local, FREE!)
 - **Templates**: Reusable AI instructions
 - **Variables**: Dynamic content with data sources
 - **Quality Scoring**: 0-100 for every output
 
 ### Data Sources
+
 Fetch data from anywhere:
+
 - **RSS Feeds** - News, blogs, podcasts
 - **APIs** - Any JSON API
 - **Websites** - Web scraping with auth
 - **Static Data** - CSV, JSON files
 
 ### Automation
+
 - **Scheduled Jobs**: Cron-based automation
 - **Data Refresh**: Auto-update data sources
 - **Batch Generation**: Multiple outputs at once
 - **Conditional Delivery**: Rules-based routing
 
 ### Quality & Review
+
 - **Review Queue**: Approve before delivery
 - **Auto-Approval Rules**: "Quality > 80" → auto-approve
 - **Safety Checks**: PII detection, content filtering
 - **Audit Trail**: Track all changes
 
 ### Delivery Channels
+
 - **Email**: HTML/text with attachments
 - **SMS**: 160-char optimized
 - **Voice**: TTS with pauses
@@ -117,22 +139,26 @@ Fetch data from anywhere:
 ### Platform Tiers
 
 **Free (Open Source)**:
+
 - Price: **$0 forever**
 - Features: Complete platform, all features
 - Support: Community (GitHub, Discord)
 - Perfect for: Individuals, hobbyists, trying it out
 
 **Pro**:
+
 - Price: **$29/month** or $290/year (save $58)
 - Features: Everything in Free + Priority support, early access, private Discord
 - Perfect for: Solo developers, small teams, content creators
 
 **Business**:
+
 - Price: **$99/month** or $990/year (save $198)
 - Features: Everything in Pro + White-label, SLA, multi-instance
 - Perfect for: Agencies, serious businesses, resellers
 
 **Enterprise**:
+
 - Price: **Custom** (starting at $500/month)
 - Features: Everything + Dedicated support, custom development
 - Perfect for: Large organizations, special requirements
@@ -140,10 +166,12 @@ Fetch data from anywhere:
 ### Your Costs (With Free Tier)
 
 **Infrastructure**:
+
 - Server: $5-20/month (DigitalOcean, AWS, etc.)
 - Database: $0-10/month (Neon.tech free tier works great)
 
 **API Costs** (BYOK - pay providers directly):
+
 - AI: $0.001-0.01 per generation (OpenAI/Anthropic)
 - Email: $0.0001 per email (SendGrid)
 - SMS: $0.0075 per message (Twilio)
@@ -158,6 +186,7 @@ Fetch data from anywhere:
 ## 🎯 Use Cases
 
 ### For Agencies
+
 - Generate client content with quality control
 - Multi-client management
 - Review workflow before delivery
@@ -165,6 +194,7 @@ Fetch data from anywhere:
 - White-label ready
 
 ### For Developers
+
 - Embed in your applications (CLI/API)
 - CI/CD integration
 - Headless deployment
@@ -172,6 +202,7 @@ Fetch data from anywhere:
 - Open source (audit, modify, contribute)
 
 ### For Businesses
+
 - Multi-channel communication
 - Quality control (every output scored)
 - Compliance ready (audit trail, review workflow)
@@ -179,6 +210,7 @@ Fetch data from anywhere:
 - Scalable (SQLite → PostgreSQL)
 
 ### For Content Teams
+
 - Content generation with templates
 - Quality scoring
 - Review queue (approve before publish)
@@ -244,6 +276,7 @@ Fetch data from anywhere:
 ## 🚀 Examples
 
 ### Generate & Deliver
+
 ```bash
 # Via CLI
 amoeba generate newsletter --deliver email,sms
@@ -264,6 +297,7 @@ Click → Generate → Review → Approve → Deliver
 ```
 
 ### Scheduled Automation
+
 ```bash
 # Daily at 9am
 amoeba schedule create \
@@ -275,6 +309,7 @@ amoeba schedule create \
 ```
 
 ### Data-Driven Content
+
 ```bash
 # Create template with data source
 amoeba template create "Tech News Summary" \
@@ -289,18 +324,21 @@ amoeba template create "Tech News Summary" \
 ## 🛠️ Technical Stack
 
 **Backend:**
+
 - Node.js 18+ / TypeScript
 - Express.js
 - Drizzle ORM
 - PostgreSQL or SQLite
 
 **Frontend:**
+
 - React 18 + TypeScript
 - Radix UI
 - Tailwind CSS
 - Wouter (routing)
 
 **Integrations:**
+
 - OpenAI, Anthropic, Cohere, Ollama (AI)
 - Twilio (SMS & voice)
 - SendGrid, AWS SES (email)
@@ -313,7 +351,7 @@ amoeba template create "Tech News Summary" \
 - **Documentation**: [/docs](/docs)
 - **Issues**: [GitHub Issues](https://github.com/quarkvibe/ameoba_v2.0/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/quarkvibe/ameoba_v2.0/discussions)
-- **Email**: support@quarkvibe.com
+- **Email**: <support@quarkvibe.com>
 
 ---
 
@@ -322,6 +360,7 @@ amoeba template create "Tech News Summary" \
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **Areas We Need Help:**
+
 - Additional AI provider integrations
 - More delivery channels (Discord, Slack, Teams)
 - Database adapters (MySQL, MongoDB)
@@ -333,6 +372,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## 🗺️ Roadmap
 
 ### ✅ Phase 1: Foundation (COMPLETE)
+
 - Multi-provider AI generation
 - Multi-channel delivery
 - SMS command interface
@@ -343,6 +383,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md).
 - Licensing system
 
 ### 🔄 Phase 2: Current (In Progress)
+
 - Fix remaining TypeScript errors
 - Enhance AI agent console
 - Add code modification capabilities (human-approved)
@@ -350,6 +391,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md).
 - Production deployment guides
 
 ### 📅 Phase 3: Enhancement (Month 2)
+
 - Template marketplace
 - More delivery channels (Discord, Slack)
 - Plugin system
@@ -357,6 +399,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md).
 - Advanced analytics
 
 ### 🔮 Phase 4: Ecosystem (Month 3+)
+
 - Community marketplace
 - Revenue sharing (70/30 split)
 - Developer certification
