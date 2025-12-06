@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense, lazy } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/dashboard/Sidebar";
@@ -9,34 +9,37 @@ import SystemStatus from "@/components/dashboard/SystemStatus";
 import HourlyChart from "@/components/dashboard/HourlyChart";
 import QueueStatus from "@/components/dashboard/QueueStatus";
 import FloatingActionMenu from "@/components/dashboard/FloatingActionMenu";
-import ContentGeneration from "@/components/dashboard/ContentGeneration";
-import LogsViewer from "@/components/dashboard/LogsViewer";
-import FileManagement from "@/components/dashboard/FileManagement";
-import HealthMonitor from "@/components/dashboard/HealthMonitor";
-import ContentConfiguration from "@/components/dashboard/ContentConfiguration";
-import DataSourceManager from "@/components/dashboard/DataSourceManager";
-import OutputConfiguration from "@/components/dashboard/OutputConfiguration";
-import ScheduleManager from "@/components/dashboard/ScheduleManager";
-import ApiSettings from "@/components/dashboard/ApiSettings";
-import Terminal from "@/components/dashboard/Terminal";
-import { useWebSocketContext } from "@/contexts/WebSocketContext";
-import SystemHealthDashboard from "@/components/dashboard/SystemHealthDashboard";
-import LicenseManagement from "@/components/dashboard/LicenseManagement";
-import OllamaSetup from "@/components/dashboard/OllamaSetup";
-import ReviewQueue from "@/components/dashboard/ReviewQueue";
-import CredentialsManager from "@/components/dashboard/CredentialsManager";
-import EnvironmentManager from "@/components/dashboard/EnvironmentManager";
-import AgentConfigurator from "@/components/dashboard/AgentConfigurator";
-import SMSCommands from "@/components/dashboard/SMSCommands";
-import SystemTesting from "@/components/dashboard/SystemTesting";
-import DeploymentGuide from "@/components/dashboard/DeploymentGuide";
-import DatabaseConfiguration from "@/components/dashboard/DatabaseConfiguration";
-import CodeModification from "@/components/dashboard/CodeModification";
 import { CommandPalette } from "@/components/dashboard/CommandPalette";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { DashboardCustomizer } from "@/components/dashboard/DashboardCustomizer";
-import SocialAutomator from "@/components/organelles/SocialAutomator";
-import ColonyManager from "@/components/dashboard/ColonyManager";
+import { useWebSocketContext } from "@/contexts/WebSocketContext";
+import { Loader2 } from "lucide-react";
+
+// Lazy Load Heavy Components
+const ContentGeneration = lazy(() => import("@/components/dashboard/ContentGeneration"));
+const LogsViewer = lazy(() => import("@/components/dashboard/LogsViewer"));
+const FileManagement = lazy(() => import("@/components/dashboard/FileManagement"));
+const HealthMonitor = lazy(() => import("@/components/dashboard/HealthMonitor"));
+const ContentConfiguration = lazy(() => import("@/components/dashboard/ContentConfiguration"));
+const DataSourceManager = lazy(() => import("@/components/dashboard/DataSourceManager"));
+const OutputConfiguration = lazy(() => import("@/components/dashboard/OutputConfiguration"));
+const ScheduleManager = lazy(() => import("@/components/dashboard/ScheduleManager"));
+const ApiSettings = lazy(() => import("@/components/dashboard/ApiSettings"));
+const Terminal = lazy(() => import("@/components/dashboard/Terminal"));
+const SystemHealthDashboard = lazy(() => import("@/components/dashboard/SystemHealthDashboard"));
+const LicenseManagement = lazy(() => import("@/components/dashboard/LicenseManagement"));
+const OllamaSetup = lazy(() => import("@/components/dashboard/OllamaSetup"));
+const ReviewQueue = lazy(() => import("@/components/dashboard/ReviewQueue"));
+const CredentialsManager = lazy(() => import("@/components/dashboard/CredentialsManager"));
+const EnvironmentManager = lazy(() => import("@/components/dashboard/EnvironmentManager"));
+const AgentConfigurator = lazy(() => import("@/components/dashboard/AgentConfigurator"));
+const SMSCommands = lazy(() => import("@/components/dashboard/SMSCommands"));
+const SystemTesting = lazy(() => import("@/components/dashboard/SystemTesting"));
+const DeploymentGuide = lazy(() => import("@/components/dashboard/DeploymentGuide"));
+const DatabaseConfiguration = lazy(() => import("@/components/dashboard/DatabaseConfiguration"));
+const CodeModification = lazy(() => import("@/components/dashboard/CodeModification"));
+const SocialAutomator = lazy(() => import("@/components/organelles/SocialAutomator"));
+const ColonyManager = lazy(() => import("@/components/dashboard/ColonyManager"));
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -291,7 +294,13 @@ export default function Dashboard() {
           </div>
 
           {/* Dynamic Content Based on Active View */}
-          {renderActiveView()}
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          }>
+            {renderActiveView()}
+          </Suspense>
         </div>
       </main>
 

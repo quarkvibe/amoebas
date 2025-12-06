@@ -36,6 +36,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  isAdmin: boolean("is_admin").default(false),
 
   // Subscription fields (v2.0 - hybrid freemium model)
   subscriptionTier: varchar("subscription_tier", { length: 50 }).default('free'), // 'free', 'pro', 'business', 'enterprise'
@@ -102,6 +103,20 @@ export const apiKeys = pgTable("api_keys", {
   expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Mothership Telemetry (Global Ecosystem)
+export const instanceHeartbeats = pgTable("instance_heartbeats", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  instanceId: varchar("instance_id").notNull(), // Unique ID of the reporting instance
+  licenseKey: varchar("license_key"), // License key used by the instance (if any)
+  ipAddress: varchar("ip_address"),
+  version: varchar("version"),
+  userCount: integer("user_count"),
+  activeUserCount: integer("active_user_count"),
+  licenseStats: jsonb("license_stats"), // Breakdown of licenses on that instance
+  systemStats: jsonb("system_stats"), // CPU, RAM, etc.
+  receivedAt: timestamp("received_at").defaultNow(),
 });
 
 // Webhook configurations for external notifications

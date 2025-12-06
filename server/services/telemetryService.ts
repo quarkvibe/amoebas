@@ -1,13 +1,15 @@
+
 import { storage } from '../storage';
 import { licenseService } from './licenseService';
 
 export class TelemetryService {
-    private readonly HEARTBEAT_URL = 'https://api.quarkvibe.com/telemetry/heartbeat'; // Placeholder
-    private readonly INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+    // Default to local mothership for self-contained demo, or external URL in production
+    private readonly TELEMETRY_ENDPOINT = process.env.MOTHERSHIP_URL || "http://localhost:5000/api/mothership/telemetry";
+    private readonly HEARTBEAT_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 
     constructor() {
         // Start heartbeat loop
-        setInterval(() => this.sendHeartbeat(), this.INTERVAL_MS);
+        setInterval(() => this.sendHeartbeat(), this.HEARTBEAT_INTERVAL);
     }
 
     /**

@@ -95,9 +95,14 @@ export function setupAuth(app: Express) {
             }
 
             const hashedPassword = await bcrypt.hash(password, 10);
+
+            // First user is Admin
+            const isAdmin = userCount === 0;
+
             const user = await storage.upsertUser({
                 username,
                 password: hashedPassword,
+                isAdmin,
             });
 
             req.login(user, (err) => {

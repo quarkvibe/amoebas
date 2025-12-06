@@ -66,10 +66,10 @@ app.use((req, res, next) => {
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
+    // reusePort: true,
   }, async () => {
     log(`serving on port ${port}`);
-    
+
     // Start the automated content generation cron service
     if (process.env.ENABLE_CRON !== 'false') {
       await cronService.start();

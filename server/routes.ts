@@ -98,15 +98,34 @@ async function requireApiKey(req: any, res: any, next: any, permissions: string[
 
 import socialAutomatorRouter from "./routes/socialAutomator";
 import colonyRouter from "./routes/colony";
+import { registerMothershipRoutes } from "./mothership/routes"; // Switched to Mothership
+import { registerUserRoutes } from "./routes/users"; // Added import for user routes
+import { aiRouter } from "./routes/ai";
+import { integrationsRouter } from "./routes/integrations";
+import { systemRouter } from "./routes/system";
+import { Router } from "express"; // Added import for Router
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ... existing setup ...
 
-  // Register Social Automator Organelle
-  app.use("/api/social-automator", socialAutomatorRouter);
+  // Register Mothership Routes (Admin + Telemetry)
+  const apiRouter = Router();
+  registerMothershipRoutes(apiRouter);
+  app.use(apiRouter);
 
+  // Register API routes
   // Register Colony Manager
   app.use("/api/colony", colonyRouter);
+
+  // Register AI Routes (Agent, Organelles, MCP)
+  app.use("/api", aiRouter);
+
+  // Register Integration Routes (API Keys, Credentials)
+  app.use("/api", integrationsRouter);
+
+  // Register System Routes (Health, Config, Cron)
+  app.use("/api", systemRouter);
+
   // Simple health checks BEFORE auth middleware
   app.get('/healthz', (req, res) => res.status(200).send('OK'));
   app.get('/readyz', (req, res) => res.status(200).json({ status: 'ready' }));
@@ -120,216 +139,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(req.user);
   });
 
-  // Health check endpoint (public) - Simple version
-  app.get("/api/health", async (req, res) => {
-    try {
-      // Simple health check - just verify DB connection
-      const dbHealth = await storage.healthCheck();
-      res.json({
-        status: dbHealth.healthy ? "healthy" : "degraded",
-        icon: dbHealth.healthy ? "🟢" : "🔴",
-        message: dbHealth.message || "System operational",
-        timestamp: new Date().toISOString(),
-        service: "Amoeba AI Platform",
-        version: "2.0.0",
-      });
-    } catch (error) {
-      console.error("Health check error:", error);
-      res.status(500).json({
-        status: "critical",
-        message: "Health check failed"
-      });
-    }
-  });
-
-  // System readiness check (authenticated) - Simplified
-  app.get("/api/system/readiness", isAuthenticated, async (req: any, res) => {
-    try {
-      const dbHealth = await storage.healthCheck();
-      res.json({
-        status: dbHealth.healthy ? "ready" : "degraded",
-        database: dbHealth,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("Readiness check error:", error);
-      res.status(500).json({ message: "Failed to check system readiness" });
-    }
-  });
+  // =============================================================================
+  // HEALTH & READINESS (Delegated to systemRouter)
+  // =============================================================================
 
 
 
   // =============================================================================
+  // AI AGENT & ORGANELLES (Delegated to aiRouter)
   // =============================================================================
-  // AI AGENT (Auth Required)
-  // =============================================================================
-
-  // Coding Agent Chat
-  app.post("/api/agent/coding", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { message, context } = req.body;
-      const response = await codingAgentService.processRequest(userId, message, context);
-      res.json(response);
-    } catch (error: any) {
-      console.error("Error in coding agent:", error);
-      res.status(500).json({ message: error.message || "Failed to process coding request" });
-    }
-  });
-
-  // Organelles Management
-  app.get("/api/organelles", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const organelles = await organelleService.getOrganelles(userId);
-      res.json(organelles);
-    } catch (error) {
-      console.error("Error fetching organelles:", error);
-      res.status(500).json({ message: "Failed to fetch organelles" });
-    }
-  });
-
-  app.delete("/api/organelles/:name", isAuthenticated, async (req: any, res) => {
-    try {
-      const { name } = req.params;
-      const result = await organelleService.deleteOrganelle(name);
-
-      if (!result.success) {
-        return res.status(404).json({ message: result.message });
-      }
-
-      res.json(result);
-    } catch (error) {
-      console.error("Error deleting organelle:", error);
-      res.status(500).json({ message: "Failed to delete organelle" });
-    }
-  });
-
-  // Setup & System Status
-  app.get("/api/setup/status", async (_req, res) => {
-    try {
-      const userCount = await storage.getUserCount();
-      res.json({
-        requiresSetup: userCount === 0,
-        userCount
-      });
-    } catch (error) {
-      console.error("Error checking setup status:", error);
-      res.status(500).json({ message: "Failed to check setup status" });
-    }
-  });
-
-  // Organelles Registry
-  app.get("/api/registry", isAuthenticated, async (req: any, res) => {
-    try {
-      const items = await registryService.getRegistry();
-      res.json(items);
-    } catch (error) {
-      console.error("Error fetching registry:", error);
-      res.status(500).json({ message: "Failed to fetch registry" });
-    }
-  });
-
-  app.post("/api/registry/install", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { id } = req.body;
-
-      if (!id) {
-        return res.status(400).json({ message: "Organelle ID is required" });
-      }
-
-      const result = await registryService.installOrganelle(id, userId);
-
-      if (!result.success) {
-        return res.status(500).json({ message: result.message });
-      }
-
-      res.json(result);
-    } catch (error) {
-      console.error("Error installing organelle:", error);
-      res.status(500).json({ message: "Failed to install organelle" });
-    }
-  });
-
-  // MCP Servers Management
-  app.get("/api/mcp", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const tools = await mcpService.getTools(userId);
-      res.json({ tools });
-    } catch (error) {
-      console.error("Error fetching MCP tools:", error);
-      res.status(500).json({ message: "Failed to fetch MCP tools" });
-    }
-  });
-
-  // File System API
-  app.get("/api/files", isAuthenticated, async (req: any, res) => {
-    try {
-      const tree = await fileService.getFileTree();
-      res.json(tree);
-    } catch (error) {
-      console.error("Error fetching file tree:", error);
-      res.status(500).json({ message: "Failed to fetch file tree" });
-    }
-  });
-
-  app.get("/api/files/content", isAuthenticated, async (req: any, res) => {
-    try {
-      const { path } = req.query;
-      if (!path || typeof path !== 'string') {
-        return res.status(400).json({ message: "Path is required" });
-      }
-      const content = await fileService.readFile(path);
-      res.json({ content });
-    } catch (error) {
-      console.error("Error reading file:", error);
-      res.status(500).json({ message: "Failed to read file" });
-    }
-  });
-
-  // Chat with AI agent
-  app.post("/api/agent/chat", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { message } = req.body;
-
-      if (!message || typeof message !== 'string') {
-        return res.status(400).json({ message: 'Invalid message' });
-      }
-
-      const response = await aiAgent.processMessage(userId, message);
-      res.json(response);
-    } catch (error) {
-      console.error("Error in AI agent chat:", error);
-      res.status(500).json({ message: "Failed to process chat message" });
-    }
-  });
-
-  // Get conversation history
-  app.get("/api/agent/conversations", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const conversations = await storage.getAgentConversations(userId);
-      res.json(conversations);
-    } catch (error) {
-      console.error("Error fetching conversations:", error);
-      res.status(500).json({ message: "Failed to fetch conversations" });
-    }
-  });
-
-  // Get AI suggestions
-  app.get("/api/agent/suggestions", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const suggestions = await aiAgent.suggestOptimizations(userId);
-      res.json({ suggestions });
-    } catch (error) {
-      console.error("Optimization suggestions error:", error);
-      res.json({ suggestions: ["Unable to generate suggestions at this time"] });
-    }
-  });
 
   // =============================================================================
   // ANALYTICS & REPORTING (Auth Required)
@@ -342,325 +160,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // =============================================================================
 
   // =============================================================================
-  // SYSTEM CONFIGURATION (Auth Required)
+  // SYSTEM CONFIGURATION (Delegated to systemRouter)
   // =============================================================================
 
-  // Get system configurations
-  app.get("/api/system/config", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      // Return basic config - can be expanded later
-      res.json({
-        version: '2.0.0',
-        features: ['content_generation', 'scheduling', 'delivery'],
-        userId
-      });
-    } catch (error) {
-      console.error("Error fetching system config:", error);
-      res.status(500).json({ message: "Failed to fetch system config" });
-    }
-  });
-
-  // Update system configuration
-  app.put("/api/system/config", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      // Stub - acknowledge update
-      res.json({ message: 'Configuration updated', userId });
-    } catch (error) {
-      console.error("Error updating system config:", error);
-      res.status(500).json({ message: "Failed to update system config" });
-    }
-  });
-
   // =============================================================================
-  // API KEY MANAGEMENT (Auth Required)
+  // INTEGRATIONS & CREDENTIALS (Delegated to integrationsRouter)
   // =============================================================================
 
-  // Get all API keys for the current user
-  app.get("/api/api-keys", isAuthenticated, async (req, res) => {
-    try {
-      const apiKeys = await integrationService.getApiKeys();
-      // Don't return the actual key hash, only metadata
-      const safeApiKeys = apiKeys.map(key => ({
-        id: key.id,
-        name: key.name,
-        permissions: key.permissions,
-        isActive: key.isActive,
-        lastUsed: key.lastUsed,
-        expiresAt: key.expiresAt,
-        createdAt: key.createdAt,
-        updatedAt: key.updatedAt
-      }));
-      res.json(safeApiKeys);
-    } catch (error) {
-      console.error("Error fetching API keys:", error);
-      res.status(500).json({ message: "Failed to fetch API keys" });
-    }
-  });
-
-  // Generate a new API key
-  app.post("/api/api-keys", isAuthenticated, async (req, res) => {
-    try {
-      const { name, permissions } = req.body;
-
-      if (!name || !permissions || !Array.isArray(permissions)) {
-        return res.status(400).json({
-          message: "Name and permissions array are required"
-        });
-      }
-
-      const result = await integrationService.generateApiKey(name, permissions);
-
-      res.json({
-        message: "API key generated successfully",
-        apiKey: {
-          id: result.apiKey.id,
-          name: result.apiKey.name,
-          permissions: result.apiKey.permissions,
-          key: result.key // Only return the actual key on creation
-        }
-      });
-    } catch (error) {
-      console.error("Error generating API key:", error);
-      res.status(500).json({ message: "Failed to generate API key" });
-    }
-  });
-
-  // Revoke an API key
-  app.delete("/api/api-keys/:id", isAuthenticated, async (req, res) => {
-    try {
-      const { id } = req.params;
-      await integrationService.revokeApiKey(id);
-      res.json({ message: "API key revoked successfully" });
-    } catch (error) {
-      console.error("Error revoking API key:", error);
-      res.status(500).json({ message: "Failed to revoke API key" });
-    }
-  });
-
   // =============================================================================
-  // INTEGRATION MANAGEMENT (Auth Required)
+  // SYSTEM & CRON (Delegated to systemRouter)
   // =============================================================================
-
-  // Get integrations
-  app.get("/api/integrations", isAuthenticated, async (req, res) => {
-    try {
-      const apiKeys = await integrationService.getApiKeys();
-      const webhooks = await storage.getActiveWebhooks();
-      res.json({ apiKeys, webhooks });
-    } catch (error) {
-      console.error("Error fetching integrations:", error);
-      res.status(500).json({ message: "Failed to fetch integrations" });
-    }
-  });
-
-  // Create API key (legacy endpoint - use /api/api-keys instead)
-  app.post("/api/integrations/keys", isAuthenticated, async (req, res) => {
-    try {
-      const { name, permissions } = req.body;
-      const result = await integrationService.generateApiKey(name, permissions);
-      res.status(201).json(result);
-    } catch (error) {
-      console.error("Error creating API key:", error);
-      res.status(500).json({ message: "Failed to create API key" });
-    }
-  });
-
-  // =============================================================================
-  // BYOK CREDENTIALS MANAGEMENT (Auth Required)
-  // =============================================================================
-
-  // AI Credentials CRUD
-  app.get("/api/ai-credentials", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const credentials = await storage.getAiCredentials(userId);
-
-      // Don't return the full API key in list view for security
-      const safeCredentials = credentials.map(cred => ({
-        ...cred,
-        apiKey: `${cred.apiKey.substring(0, 8)}...${cred.apiKey.substring(cred.apiKey.length - 4)}`,
-      }));
-
-      res.json(safeCredentials);
-    } catch (error) {
-      console.error("Error fetching AI credentials:", error);
-      res.status(500).json({ message: "Failed to fetch AI credentials" });
-    }
-  });
-
-  app.post("/api/ai-credentials", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const credential = await storage.createAiCredential({ ...req.body, userId });
-
-      // Mask the API key in response (show first 8 and last 4 chars)
-      res.status(201).json({
-        ...credential,
-        apiKey: `${credential.apiKey.substring(0, 8)}...${credential.apiKey.substring(credential.apiKey.length - 4)}`,
-      });
-    } catch (error) {
-      console.error("Error creating AI credential:", error);
-      res.status(500).json({ message: "Failed to create AI credential" });
-    }
-  });
-
-  app.get("/api/ai-credentials/:id", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const credential = await storage.getAiCredential(req.params.id, userId);
-
-      if (!credential) {
-        return res.status(404).json({ message: "AI credential not found" });
-      }
-
-      // Return full credential (caller has permission)
-      res.json(credential);
-    } catch (error) {
-      console.error("Error fetching AI credential:", error);
-      res.status(500).json({ message: "Failed to fetch AI credential" });
-    }
-  });
-
-  app.put("/api/ai-credentials/:id", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const credential = await storage.updateAiCredential(req.params.id, userId, req.body);
-
-      if (!credential) {
-        return res.status(404).json({ message: "AI credential not found" });
-      }
-
-      res.json({
-        ...credential,
-        apiKey: `${credential.apiKey.substring(0, 8)}...${credential.apiKey.substring(credential.apiKey.length - 4)}`,
-      });
-    } catch (error) {
-      console.error("Error updating AI credential:", error);
-      res.status(500).json({ message: "Failed to update AI credential" });
-    }
-  });
-
-  app.delete("/api/ai-credentials/:id", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const deleted = await storage.deleteAiCredential(req.params.id, userId);
-
-      if (!deleted) {
-        return res.status(404).json({ message: "AI credential not found" });
-      }
-
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting AI credential:", error);
-      res.status(500).json({ message: "Failed to delete AI credential" });
-    }
-  });
-
-  // Email Service Credentials CRUD
-  app.get("/api/email-credentials", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const credentials = await storage.getEmailServiceCredentials(userId);
-
-      // Mask sensitive fields in list view
-      const safeCredentials = credentials.map(cred => ({
-        ...cred,
-        apiKey: cred.apiKey ? `${cred.apiKey.substring(0, 8)}...` : null,
-        awsSecretAccessKey: cred.awsSecretAccessKey ? '***HIDDEN***' : null,
-      }));
-
-      res.json(safeCredentials);
-    } catch (error) {
-      console.error("Error fetching email credentials:", error);
-      res.status(500).json({ message: "Failed to fetch email credentials" });
-    }
-  });
-
-  app.post("/api/email-credentials", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const credential = await storage.createEmailServiceCredential({ ...req.body, userId });
-
-      res.status(201).json({
-        ...credential,
-        apiKey: credential.apiKey ? `${credential.apiKey.substring(0, 8)}...` : null,
-        awsSecretAccessKey: credential.awsSecretAccessKey ? '***HIDDEN***' : null,
-      });
-    } catch (error) {
-      console.error("Error creating email credential:", error);
-      res.status(500).json({ message: "Failed to create email credential" });
-    }
-  });
-
-  app.get("/api/email-credentials/:id", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const credential = await storage.getEmailServiceCredential(req.params.id, userId);
-
-      if (!credential) {
-        return res.status(404).json({ message: "Email credential not found" });
-      }
-
-      // Return full credential (caller has permission)
-      res.json(credential);
-    } catch (error) {
-      console.error("Error fetching email credential:", error);
-      res.status(500).json({ message: "Failed to fetch email credential" });
-    }
-  });
-
-  app.put("/api/email-credentials/:id", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const credential = await storage.updateEmailServiceCredential(req.params.id, userId, req.body);
-
-      if (!credential) {
-        return res.status(404).json({ message: "Email credential not found" });
-      }
-
-      res.json({
-        ...credential,
-        apiKey: credential.apiKey ? `${credential.apiKey.substring(0, 8)}...` : null,
-        awsSecretAccessKey: credential.awsSecretAccessKey ? '***HIDDEN***' : null,
-      });
-    } catch (error) {
-      console.error("Error updating email credential:", error);
-      res.status(500).json({ message: "Failed to update email credential" });
-    }
-  });
-
-  app.delete("/api/email-credentials/:id", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const deleted = await storage.deleteEmailServiceCredential(req.params.id, userId);
-
-      if (!deleted) {
-        return res.status(404).json({ message: "Email credential not found" });
-      }
-
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting email credential:", error);
-      res.status(500).json({ message: "Failed to delete email credential" });
-    }
-  });
-
-  // =============================================================================
-  // CRON JOB MANAGEMENT (Auth Required)
-  // =============================================================================
-
-  // Get cron job status
-  app.get("/api/cron/status", isAuthenticated, async (req, res) => {
-    try {
-      const status = cronService.getStatus();
-      res.json(status);
-    } catch (error) {
-      console.error("Error fetching cron status:", error);
-      res.status(500).json({ message: "Failed to fetch cron status" });
-    }
-  });
 
   // ===============================================
   // UNIVERSAL CONTENT PLATFORM API ROUTES

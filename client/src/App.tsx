@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import SetupPage from "@/pages/setup-page";
+import AdminDashboard from "@/pages/admin-dashboard";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
@@ -40,6 +41,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/setup" component={SetupPage} />
+      <Route path="/admin" component={AdminDashboard} />
       {isAuthenticated ? (
         <>
           <Route path="/" component={Dashboard} />
