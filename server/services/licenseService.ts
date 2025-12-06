@@ -15,6 +15,8 @@ export interface LicenseStatus {
   licenseKey?: string;
   status: 'inactive' | 'active' | 'deactivated' | 'expired';
   activatedAt?: Date;
+  expiresAt?: Date;
+  daysRemaining?: number;
   deviceFingerprint?: string;
   message: string;
 }
@@ -70,13 +72,37 @@ export class LicenseService {
   }
 
   /**
-   * Generate a unique license key for user after $3.50 payment
-   * (Placeholder for Enterprise/Paid flow - would normally be signed by Cloud Server)
+   * Generate a unique annual license key for user after payment
    */
   async generateLicense(userId: string, paymentId: string): Promise<string> {
-    // For now, we use the same local signing for simplicity in this demo
-    // In production, this would verify a key signed by QuarkVibe's private key
-    return this.createCommunityLicense(userId);
+    // Determine license type and duration based on paymentId
+    // For now, default to 1 year for paid licenses
+    const durationDays = 365;
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + durationDays);
+
+    // Create signed payload
+    const payload = JSON.stringify({
+      t: 'PROFESSIONAL', // Default to Pro for now
+      u: userId,
+      exp: expiresAt.getTime(),
+      ts: Date.now()
+    });
+
+    const signature = cryptoService.sign(payload);
+    const payloadB64 = Buffer.from(payload).toString('base64');
+    const licenseKey = `${this.LICENSE_PREFIX}-${this.LICENSE_VERSION}.${payloadB64}.${signature}`;
+
+    await storage.createLicense({
+      userId,
+      licenseKey,
+      paymentId,
+      status: 'inactive',
+      expiresAt: expiresAt
+    });
+
+    console.log(`✅ Annual License generated for user ${userId} (Expires: ${expiresAt.toISOString()})`);
+    return licenseKey;
   }
 
   /**
@@ -201,6 +227,26 @@ export class LicenseService {
         };
       }
 
+      // Check if license is expired
+      if (license.expiresAt && new Date() > new Date(license.expiresAt)) {
+        return {
+          isValid: false,
+          status: 'expired',
+          message: 'License has expired. Please renew your subscription.',
+          expiresAt: license.expiresAt,
+          daysRemaining: 0
+        };
+      }
+
+      // Calculate days remaining
+      let daysRemaining: number | undefined;
+      if (license.expiresAt) {
+        const now = new Date();
+        const expiry = new Date(license.expiresAt);
+        const diffTime = Math.abs(expiry.getTime() - now.getTime());
+        daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }
+
       // Update last validated timestamp
       await storage.updateLicenseLastValidated(license.id);
 
@@ -209,6 +255,8 @@ export class LicenseService {
         licenseKey: license.licenseKey,
         status: 'active',
         activatedAt: license.activatedAt || undefined,
+        expiresAt: license.expiresAt || undefined,
+        daysRemaining,
         deviceFingerprint: deviceFingerprint.substring(0, 8) + '...',
         message: 'License valid',
       };

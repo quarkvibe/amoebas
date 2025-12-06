@@ -769,6 +769,7 @@ export const licenses = pgTable("licenses", {
   lastValidated: timestamp("last_validated"),
   paymentId: varchar("payment_id"),
   status: varchar("status").notNull().default('inactive'), // inactive, active, deactivated
+  expiresAt: timestamp("expires_at"), // Subscription expiration date
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("idx_licenses_user").on(table.userId),

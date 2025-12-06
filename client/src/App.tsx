@@ -7,6 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
+import Pricing from "@/pages/pricing";
+import ContactSales from "@/pages/contact-sales";
 import Dashboard from "@/pages/dashboard";
 import SetupPage from "@/pages/setup-page";
 import AdminDashboard from "@/pages/admin-dashboard";
@@ -48,7 +50,11 @@ function Router() {
           <Route path="/dashboard/:rest*" component={Dashboard} />
         </>
       ) : (
-        <Route path="/" component={Landing} />
+        <>
+          <Route path="/" component={Landing} />
+          <Route path="/pricing" component={Pricing} />
+          <Route path="/contact-sales" component={ContactSales} />
+        </>
       )}
       <Route component={NotFound} />
     </Switch>

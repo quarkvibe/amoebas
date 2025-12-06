@@ -5,7 +5,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl space-y-8 text-center">
-        
+
         {/* Logo and Title */}
         <div className="space-y-4">
           <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto">
@@ -20,7 +20,7 @@ export default function Landing() {
         {/* Description */}
         <div className="space-y-4 max-w-2xl mx-auto">
           <p className="text-lg text-foreground">
-            Generate and deliver AI content on your terms. Bring your own API keys for any AI service, 
+            Generate and deliver AI content on your terms. Bring your own API keys for any AI service,
             configure calls with precision, and automate delivery via email or API.
           </p>
           <p className="text-muted-foreground">
@@ -68,9 +68,17 @@ export default function Landing() {
         </div>
 
         {/* Login Button */}
-        <div className="pt-8">
-          <Button 
-            size="lg" 
+        <div className="pt-8 flex justify-center gap-4">
+          <Button
+            size="lg"
+            variant="outline"
+            className="px-8 py-6 text-lg"
+            onClick={() => window.location.href = '/pricing'}
+          >
+            View Pricing
+          </Button>
+          <Button
+            size="lg"
             className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-6 text-lg"
             onClick={() => window.location.href = '/api/login'}
             data-testid="button-login"
@@ -83,7 +91,7 @@ export default function Landing() {
         {/* Footer */}
         <div className="pt-8 border-t border-border/50">
           <p className="text-sm text-muted-foreground">
-            Deploy Amoeba, configure your AI workflows, and automate content generation 
+            Deploy Amoeba, configure your AI workflows, and automate content generation
             with complete control over providers, delivery, and scheduling.
           </p>
         </div>

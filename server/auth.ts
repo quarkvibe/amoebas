@@ -24,14 +24,20 @@ export function setupAuth(app: Express) {
     });
 
     app.set("trust proxy", 1);
+    if (!process.env.SESSION_SECRET) {
+        throw new Error("SESSION_SECRET environment variable is required");
+    }
+
     app.use(
         session({
-            secret: process.env.SESSION_SECRET || "super_secret_session_key",
+            secret: process.env.SESSION_SECRET,
             resave: false,
             saveUninitialized: false,
             store: sessionStore,
             cookie: {
                 secure: app.get("env") === "production",
+                httpOnly: true,
+                sameSite: "strict",
                 maxAge: sessionTtl,
             },
         })
@@ -74,6 +80,35 @@ export function setupAuth(app: Express) {
     });
 
     // Auth Routes
+
+    /**
+     * @swagger
+     * /api/register:
+     *   post:
+     *     summary: Register a new user
+     *     tags: [Auth]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - username
+     *               - password
+     *             properties:
+     *               username:
+     *                 type: string
+     *               password:
+     *                 type: string
+     *     responses:
+     *       201:
+     *         description: User created successfully
+     *       400:
+     *         description: Username already exists or missing fields
+     *       403:
+     *         description: Registration disabled
+     */
     app.post("/api/register", async (req, res, next) => {
         try {
             const { username, password } = req.body;
@@ -114,6 +149,32 @@ export function setupAuth(app: Express) {
         }
     });
 
+    /**
+     * @swagger
+     * /api/login:
+     *   post:
+     *     summary: Login a user
+     *     tags: [Auth]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - username
+     *               - password
+     *             properties:
+     *               username:
+     *                 type: string
+     *               password:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Login successful
+     *       400:
+     *         description: Invalid credentials
+     */
     app.post("/api/login", (req, res, next) => {
         passport.authenticate("local", (err: any, user: Express.User, info: any) => {
             if (err) return next(err);
@@ -127,6 +188,16 @@ export function setupAuth(app: Express) {
         })(req, res, next);
     });
 
+    /**
+     * @swagger
+     * /api/logout:
+     *   post:
+     *     summary: Logout the current user
+     *     tags: [Auth]
+     *     responses:
+     *       200:
+     *         description: Logout successful
+     */
     app.post("/api/logout", (req, res, next) => {
         req.logout((err) => {
             if (err) return next(err);
@@ -134,6 +205,20 @@ export function setupAuth(app: Express) {
         });
     });
 
+    /**
+     * @swagger
+     * /api/user:
+     *   get:
+     *     summary: Get current user profile
+     *     tags: [Auth]
+     *     security:
+     *       - cookieAuth: []
+     *     responses:
+     *       200:
+     *         description: Current user profile
+     *       401:
+     *         description: Not authenticated
+     */
     app.get("/api/user", (req, res) => {
         if (!req.isAuthenticated()) {
             return res.sendStatus(401);

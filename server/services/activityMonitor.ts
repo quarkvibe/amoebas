@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { WebSocket } from 'ws';
+import logger from './logger';
 
 /**
  * Real-time activity monitor for system events
@@ -7,17 +8,17 @@ import { WebSocket } from 'ws';
  */
 export class ActivityMonitor extends EventEmitter {
   private clients: Set<WebSocket> = new Set();
-  
+
   /**
    * Register a WebSocket client for activity updates
    */
   registerClient(ws: WebSocket): void {
     this.clients.add(ws);
-    
+
     ws.on('close', () => {
       this.clients.delete(ws);
     });
-    
+
     // Send welcome message
     this.sendToClient(ws, {
       type: 'activity',
@@ -38,14 +39,27 @@ export class ActivityMonitor extends EventEmitter {
       metadata,
       timestamp: new Date().toISOString(),
     };
-    
-    // Also log to console
-    const icon = this.getLevelIcon(level);
-    console.log(`${icon} ${message}`);
-    
+
+    // Also log to persistent storage
+    const logMsg = `${message} ${metadata ? JSON.stringify(metadata) : ''}`;
+
+    switch (level) {
+      case 'error':
+        logger.error(logMsg);
+        break;
+      case 'warning':
+        logger.warn(logMsg);
+        break;
+      case 'debug':
+        logger.debug(logMsg);
+        break;
+      default:
+        logger.info(logMsg);
+    }
+
     // Broadcast to all clients
     this.broadcast(activity);
-    
+
     // Emit event for other services to listen
     this.emit('activity', activity);
   }
@@ -63,7 +77,7 @@ export class ActivityMonitor extends EventEmitter {
   logError(error: Error | string, context?: string): void {
     const message = error instanceof Error ? error.message : error;
     const stack = error instanceof Error ? error.stack : undefined;
-    
+
     this.logActivity('error', `${context ? `[${context}] ` : ''}${message}`, { stack });
   }
 
@@ -73,12 +87,12 @@ export class ActivityMonitor extends EventEmitter {
   logJobExecution(jobId: string, jobName: string, status: 'started' | 'completed' | 'failed', duration?: number): void {
     const icon = status === 'started' ? '▶️' : status === 'completed' ? '✅' : '❌';
     const msg = `${icon} Job "${jobName}" ${status}${duration ? ` in ${duration}ms` : ''}`;
-    
-    this.logActivity(status === 'failed' ? 'error' : status === 'completed' ? 'success' : 'info', msg, { 
-      jobId, 
-      jobName, 
-      status, 
-      duration 
+
+    this.logActivity(status === 'failed' ? 'error' : status === 'completed' ? 'success' : 'info', msg, {
+      jobId,
+      jobName,
+      status,
+      duration
     });
   }
 
@@ -120,7 +134,7 @@ export class ActivityMonitor extends EventEmitter {
    */
   private broadcast(data: any): void {
     const message = JSON.stringify(data);
-    
+
     this.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);

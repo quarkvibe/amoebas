@@ -1,11 +1,29 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
+import helmet from "helmet";
+import swaggerUi from "swagger-ui-express";
+import { specs } from "./swagger";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { cronService } from "./services/cronService";
+import { telemetryService } from "./services/telemetryService";
 // import { healthGuardianService } from "./services/healthGuardianService"; // REMOVED - unnecessary complexity
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
 const app = express();
+
+// Security Middleware
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled for now to avoid breaking Vite/React scripts
+}));
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || true, // Default to reflecting origin if not set
+  credentials: true,
+}));
+
+// API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -77,5 +95,8 @@ app.use((req, res, next) => {
     } else {
       log('🔒 Cron service disabled via ENABLE_CRON=false (multi-instance safety)');
     }
+
+    // Start telemetry
+    telemetryService.start();
   });
 })();

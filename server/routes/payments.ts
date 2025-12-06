@@ -74,6 +74,7 @@ export function registerPaymentRoutes(router: Router) {
 
   // Create checkout session for NEW subscription tiers (Pro/Business)
   router.post('/checkout/session',
+    isAuthenticated,
     strictRateLimit,
     async (req: any, res) => {
       try {

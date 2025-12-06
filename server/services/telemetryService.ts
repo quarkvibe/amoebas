@@ -7,9 +7,25 @@ export class TelemetryService {
     private readonly TELEMETRY_ENDPOINT = process.env.MOTHERSHIP_URL || "http://localhost:5000/api/mothership/telemetry";
     private readonly HEARTBEAT_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 
-    constructor() {
-        // Start heartbeat loop
-        setInterval(() => this.sendHeartbeat(), this.HEARTBEAT_INTERVAL);
+    private intervalId: NodeJS.Timeout | null = null;
+
+    constructor() { }
+
+    start() {
+        if (this.intervalId) return;
+        console.log('💓 Telemetry service started');
+        // Initial heartbeat
+        this.sendHeartbeat();
+        // Start loop
+        this.intervalId = setInterval(() => this.sendHeartbeat(), this.HEARTBEAT_INTERVAL);
+    }
+
+    stop() {
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+            console.log('💓 Telemetry service stopped');
+        }
     }
 
     /**

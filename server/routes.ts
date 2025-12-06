@@ -1132,7 +1132,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Send periodic updates to all connected clients
-  setInterval(() => {
+  // Send periodic updates to all connected clients
+  const metricsInterval = setInterval(() => {
     const message = JSON.stringify({
       type: 'metrics_update',
       timestamp: new Date().toISOString()
@@ -1144,6 +1145,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   }, 5000);
+
+  httpServer.on('close', () => {
+    clearInterval(metricsInterval);
+  });
 
   return httpServer;
 }

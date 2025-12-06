@@ -41,7 +41,7 @@ export interface MonitorTask {
   userId: string;
   name: string;
   description: string;
-  
+
   // Target
   targetSite: 'ebay' | 'shopgoodwill' | 'craigslist' | 'amazon' | 'generic';
   url?: string;  // For generic sites
@@ -55,27 +55,27 @@ export interface MonitorTask {
     keywords?: string[];
     excludeKeywords?: string[];
   };
-  
+
   // Monitoring
   checkInterval: number;  // Minutes between checks
   continuous: boolean;    // Run 24/7 or one-time?
   maxResults?: number;    // Limit results per check
-  
+
   // Authentication (if site requires login)
   requiresAuth: boolean;
   authProfileId?: string; // References authenticationVaultService
-  
+
   // Reporting
   reportVia: string[];    // ['sms', 'email', 'webhook']
   reportWhen: 'always' | 'changes-only' | 'matches-only';
   reportFormat: 'summary' | 'detailed' | 'raw';
-  
+
   // State
   isActive: boolean;
   lastChecked?: Date;
   lastResults?: any;
   itemsSeen: Set<string>;  // Track to avoid duplicates
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -109,34 +109,39 @@ export interface MonitoredItem {
 }
 
 class WebMonitoringService extends EventEmitter {
-  
+
   private activeTasks: Map<string, NodeJS.Timeout> = new Map();
   private taskStates: Map<string, Set<string>> = new Map(); // Items seen
-  
+
   /**
    * Start monitoring task
    */
   async startMonitoring(task: MonitorTask): Promise<void> {
     activityMonitor.logActivity('info', `🔍 Starting monitoring: ${task.name} (${task.targetSite})`);
-    
+
+    // Stop existing task if running to prevent leaks
+    if (this.activeTasks.has(task.id)) {
+      this.stopMonitoring(task.id);
+    }
+
     // Validate task
     if (task.requiresAuth && !task.authProfileId) {
       throw new Error('Authentication required but no auth profile configured');
     }
-    
+
     // Run immediately
     await this.performCheck(task);
-    
+
     // Schedule continuous checks if enabled
     if (task.continuous) {
       const intervalMs = task.checkInterval * 60 * 1000;
-      
+
       const interval = setInterval(async () => {
         try {
           await this.performCheck(task);
         } catch (error: any) {
           activityMonitor.logError(error, `Monitoring ${task.id}`);
-          
+
           // Stop if too many failures
           const failures = (task as any).consecutiveFailures || 0;
           if (failures > 5) {
@@ -145,36 +150,36 @@ class WebMonitoringService extends EventEmitter {
           }
         }
       }, intervalMs);
-      
+
       this.activeTasks.set(task.id, interval);
-      
-      activityMonitor.logActivity('success', 
+
+      activityMonitor.logActivity('success',
         `✅ Monitoring active: ${task.name} (checking every ${task.checkInterval} minutes)`
       );
     }
   }
-  
+
   /**
    * Perform single check
    */
   private async performCheck(task: MonitorTask): Promise<MonitorResult> {
     activityMonitor.logActivity('debug', `🔍 Checking: ${task.name}`);
-    
+
     try {
       // Get authentication if needed
       let authSession: any = null;
       if (task.requiresAuth && task.authProfileId) {
         authSession = await authenticationVaultService.getSession(task.authProfileId);
       }
-      
+
       // Fetch & parse based on site type
       const items = await this.fetchItems(task, authSession);
-      
+
       // Track what we've seen (detect new items)
       const previouslySeen = this.taskStates.get(task.id) || new Set<string>();
       const newItems: MonitoredItem[] = [];
       const priceChanges: MonitoredItem[] = [];
-      
+
       items.forEach(item => {
         if (!previouslySeen.has(item.id)) {
           newItems.push(item);
@@ -182,9 +187,9 @@ class WebMonitoringService extends EventEmitter {
         }
         // TODO: Check price changes
       });
-      
+
       this.taskStates.set(task.id, previouslySeen);
-      
+
       const result: MonitorResult = {
         taskId: task.id,
         checkTime: new Date(),
@@ -194,30 +199,30 @@ class WebMonitoringService extends EventEmitter {
         items: newItems, // Only report new items
         nextCheckAt: new Date(Date.now() + task.checkInterval * 60 * 1000),
       };
-      
+
       // Report if conditions met
       if (this.shouldReport(task, result)) {
         await this.reportFindings(task, result);
       }
-      
+
       // Update task state
       task.lastChecked = new Date();
       task.lastResults = result;
-      
-      activityMonitor.logActivity('success', 
+
+      activityMonitor.logActivity('success',
         `✅ Check complete: ${newItems.length} new item(s) found`
       );
-      
+
       this.emit('check:completed', result);
-      
+
       return result;
-      
+
     } catch (error: any) {
       activityMonitor.logError(error, `Monitoring check ${task.id}`);
       throw error;
     }
   }
-  
+
   /**
    * Fetch items from site
    */
@@ -226,51 +231,51 @@ class WebMonitoringService extends EventEmitter {
     switch (task.targetSite) {
       case 'ebay':
         return await this.fetchEbay(task, authSession);
-      
+
       case 'shopgoodwill':
         return await this.fetchShopgoodwill(task, authSession);
-      
+
       case 'craigslist':
         return await this.fetchCraigslist(task, authSession);
-      
+
       case 'amazon':
         return await this.fetchAmazon(task, authSession);
-      
+
       case 'generic':
         return await this.fetchGeneric(task, authSession);
-      
+
       default:
         throw new Error(`Unsupported site: ${task.targetSite}`);
     }
   }
-  
+
   /**
    * eBay adapter
    */
   private async fetchEbay(task: MonitorTask, authSession: any): Promise<MonitoredItem[]> {
     const items: MonitoredItem[] = [];
-    
+
     try {
       // Build eBay search URL
       const searchUrl = this.buildEbaySearchUrl(task);
-      
+
       // Fetch with authentication if needed
       const html = await this.fetchWithAuth(searchUrl, authSession);
-      
+
       // Parse eBay HTML
       const $ = cheerio.load(html);
-      
+
       // eBay item selectors (may need updating if eBay changes HTML)
       $('.s-item').each((i, elem) => {
         const $item = $(elem);
-        
+
         const id = $item.attr('data-listing-id') || `ebay_${i}`;
         const title = $item.find('.s-item__title').text().trim();
         const priceText = $item.find('.s-item__price').text().trim();
         const price = this.parsePrice(priceText);
         const url = $item.find('.s-item__link').attr('href') || '';
         const imageUrl = $item.find('.s-item__image img').attr('src') || '';
-        
+
         // Apply filters
         if (this.matchesFilters(task, { title, price })) {
           items.push({
@@ -285,36 +290,36 @@ class WebMonitoringService extends EventEmitter {
           });
         }
       });
-      
+
     } catch (error: any) {
       activityMonitor.logError(error, 'eBay fetch');
     }
-    
+
     return items.slice(0, task.maxResults || 50);
   }
-  
+
   /**
    * Shopgoodwill adapter
    */
   private async fetchShopgoodwill(task: MonitorTask, authSession: any): Promise<MonitoredItem[]> {
     const items: MonitoredItem[] = [];
-    
+
     try {
       const searchUrl = this.buildShopgoodwillUrl(task);
       const html = await this.fetchWithAuth(searchUrl, authSession);
       const $ = cheerio.load(html);
-      
+
       // Shopgoodwill selectors
       $('.item-card').each((i, elem) => {
         const $item = $(elem);
-        
+
         const id = $item.attr('data-item-id') || `sgw_${i}`;
         const title = $item.find('.item-title').text().trim();
         const priceText = $item.find('.current-bid').text().trim();
         const price = this.parsePrice(priceText);
         const url = $item.find('a').attr('href') || '';
         const endTimeText = $item.find('.time-left').text().trim();
-        
+
         if (this.matchesFilters(task, { title, price })) {
           items.push({
             id,
@@ -328,14 +333,14 @@ class WebMonitoringService extends EventEmitter {
           });
         }
       });
-      
+
     } catch (error: any) {
       activityMonitor.logError(error, 'Shopgoodwill fetch');
     }
-    
+
     return items.slice(0, task.maxResults || 50);
   }
-  
+
   /**
    * Craigslist adapter (stub)
    */
@@ -344,7 +349,7 @@ class WebMonitoringService extends EventEmitter {
     activityMonitor.logActivity('warning', '⚠️ Craigslist adapter not yet implemented');
     return [];
   }
-  
+
   /**
    * Amazon adapter (stub)
    */
@@ -353,34 +358,34 @@ class WebMonitoringService extends EventEmitter {
     activityMonitor.logActivity('warning', '⚠️ Amazon adapter not yet implemented');
     return [];
   }
-  
+
   /**
    * Generic site adapter (AI-powered)
    */
   private async fetchGeneric(task: MonitorTask, authSession: any): Promise<MonitoredItem[]> {
     // For sites without specific adapter
     // AI analyzes page structure and extracts relevant data
-    
+
     try {
       const html = await this.fetchWithAuth(task.url!, authSession);
       const $ = cheerio.load(html);
-      
+
       // Remove scripts, styles
       $('script, style').remove();
-      
+
       // Extract text
       const text = $.text();
-      
+
       // Use AI to parse (future: aiToolsService.extractStructuredData)
       // For now, basic extraction
-      
+
       return [];
     } catch (error: any) {
       activityMonitor.logError(error, 'Generic fetch');
       return [];
     }
   }
-  
+
   /**
    * Fetch with authentication
    */
@@ -388,7 +393,7 @@ class WebMonitoringService extends EventEmitter {
     const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Amoeba Web Monitor)',
     };
-    
+
     // Add auth headers if session provided
     if (authSession) {
       if (authSession.cookies) {
@@ -398,68 +403,68 @@ class WebMonitoringService extends EventEmitter {
         headers['Authorization'] = `Bearer ${authSession.authToken}`;
       }
     }
-    
+
     const response = await fetch(url, { headers });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
+
     return await response.text();
   }
-  
+
   /**
    * Build eBay search URL
    */
   private buildEbaySearchUrl(task: MonitorTask): string {
     const baseUrl = 'https://www.ebay.com/sch/i.html';
     const params = new URLSearchParams();
-    
+
     if (task.searchTerms && task.searchTerms.length > 0) {
       params.append('_nkw', task.searchTerms.join(' '));
     }
-    
+
     if (task.filters?.priceMin) {
       params.append('_udlo', task.filters.priceMin.toString());
     }
-    
+
     if (task.filters?.priceMax) {
       params.append('_udhi', task.filters.priceMax.toString());
     }
-    
+
     if (task.filters?.condition) {
       params.append('LH_ItemCondition', task.filters.condition);
     }
-    
+
     params.append('_sop', '10'); // Sort by newly listed
-    
+
     return `${baseUrl}?${params.toString()}`;
   }
-  
+
   /**
    * Build Shopgoodwill URL
    */
   private buildShopgoodwillUrl(task: MonitorTask): string {
     const baseUrl = 'https://shopgoodwill.com/search';
     const params = new URLSearchParams();
-    
+
     if (task.searchTerms && task.searchTerms.length > 0) {
       params.append('q', task.searchTerms.join(' '));
     }
-    
+
     if (task.filters?.priceMin) {
       params.append('min_price', task.filters.priceMin.toString());
     }
-    
+
     if (task.filters?.priceMax) {
       params.append('max_price', task.filters.priceMax.toString());
     }
-    
+
     params.append('sort', 'newest');
-    
+
     return `${baseUrl}?${params.toString()}`;
   }
-  
+
   /**
    * Parse price from text
    */
@@ -470,38 +475,38 @@ class WebMonitoringService extends EventEmitter {
     }
     return undefined;
   }
-  
+
   /**
    * Check if item matches filters
    */
   private matchesFilters(task: MonitorTask, item: { title: string; price?: number }): boolean {
     const filters = task.filters || {};
-    
+
     // Price filters
     if (filters.priceMin && (!item.price || item.price < filters.priceMin)) {
       return false;
     }
-    
+
     if (filters.priceMax && (!item.price || item.price > filters.priceMax)) {
       return false;
     }
-    
+
     // Keyword filters
     const titleLower = item.title.toLowerCase();
-    
+
     if (filters.keywords && filters.keywords.length > 0) {
       const hasKeyword = filters.keywords.some(kw => titleLower.includes(kw.toLowerCase()));
       if (!hasKeyword) return false;
     }
-    
+
     if (filters.excludeKeywords && filters.excludeKeywords.length > 0) {
       const hasExcluded = filters.excludeKeywords.some(kw => titleLower.includes(kw.toLowerCase()));
       if (hasExcluded) return false;
     }
-    
+
     return true;
   }
-  
+
   /**
    * Should we report these findings?
    */
@@ -509,28 +514,28 @@ class WebMonitoringService extends EventEmitter {
     switch (task.reportWhen) {
       case 'always':
         return true;
-      
+
       case 'changes-only':
         return result.newItems > 0 || result.priceChanges > 0;
-      
+
       case 'matches-only':
         return result.newItems > 0;
-      
+
       default:
         return result.newItems > 0;
     }
   }
-  
+
   /**
    * Report findings via configured channels
    */
   private async reportFindings(task: MonitorTask, result: MonitorResult): Promise<void> {
     activityMonitor.logActivity('info', `📢 Reporting ${result.newItems} new item(s) for ${task.name}`);
-    
+
     try {
       // Format report
       const content = this.formatReport(task, result);
-      
+
       // Deliver via configured channels
       await deliveryService.deliver({
         content,
@@ -538,14 +543,14 @@ class WebMonitoringService extends EventEmitter {
         userId: task.userId,
         channels: task.reportVia,
       });
-      
+
       activityMonitor.logActivity('success', `✅ Report delivered via ${task.reportVia.join(', ')}`);
-      
+
     } catch (error: any) {
       activityMonitor.logError(error, `Reporting findings for ${task.id}`);
     }
   }
-  
+
   /**
    * Format report for delivery
    */
@@ -558,16 +563,16 @@ class WebMonitoringService extends EventEmitter {
       return JSON.stringify(result, null, 2);
     }
   }
-  
+
   /**
    * Format summary report
    */
   private formatSummaryReport(task: MonitorTask, result: MonitorResult): string {
     const items = result.items.slice(0, 5); // Top 5
-    
+
     let report = `🔍 ${task.name}\n\n`;
     report += `Found: ${result.newItems} new item(s)\n\n`;
-    
+
     items.forEach((item, i) => {
       report += `${i + 1}. ${item.title}\n`;
       if (item.price) {
@@ -575,16 +580,16 @@ class WebMonitoringService extends EventEmitter {
       }
       report += `   ${item.url}\n\n`;
     });
-    
+
     if (result.newItems > 5) {
       report += `...and ${result.newItems - 5} more\n`;
     }
-    
+
     report += `Next check: ${result.nextCheckAt.toLocaleTimeString()}`;
-    
+
     return report;
   }
-  
+
   /**
    * Format detailed report
    */
@@ -593,9 +598,9 @@ class WebMonitoringService extends EventEmitter {
     report += `**Check Time:** ${result.checkTime.toLocaleString()}\n`;
     report += `**New Items:** ${result.newItems}\n`;
     report += `**Price Changes:** ${result.priceChanges}\n\n`;
-    
+
     report += `## Items Found\n\n`;
-    
+
     result.items.forEach((item, i) => {
       report += `### ${i + 1}. ${item.title}\n`;
       if (item.price) {
@@ -612,18 +617,18 @@ class WebMonitoringService extends EventEmitter {
       }
       report += `- **Link:** ${item.url}\n\n`;
     });
-    
+
     report += `**Next Check:** ${result.nextCheckAt.toLocaleString()}\n`;
-    
+
     return report;
   }
-  
+
   /**
    * Stop monitoring task
    */
   stopMonitoring(taskId: string): void {
     const interval = this.activeTasks.get(taskId);
-    
+
     if (interval) {
       clearInterval(interval);
       this.activeTasks.delete(taskId);
@@ -631,14 +636,14 @@ class WebMonitoringService extends EventEmitter {
       this.emit('monitoring:stopped', taskId);
     }
   }
-  
+
   /**
    * Get active monitoring tasks
    */
   getActiveTasks(): string[] {
     return Array.from(this.activeTasks.keys());
   }
-  
+
   /**
    * Pause monitoring (temporarily)
    */
@@ -646,7 +651,7 @@ class WebMonitoringService extends EventEmitter {
     this.stopMonitoring(taskId);
     activityMonitor.logActivity('info', `⏸️ Paused monitoring: ${taskId}`);
   }
-  
+
   /**
    * Resume monitoring
    */

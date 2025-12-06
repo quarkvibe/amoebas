@@ -11,13 +11,51 @@ import * as fs from 'fs/promises';
  * Robust deployment analysis and configuration
  */
 
+interface DeploymentAnalysis {
+  currentPort: number;
+  portAvailable: boolean;
+  publicIP?: string;
+  hostname: string;
+  nginxInstalled: boolean;
+  sslAvailable: boolean;
+  conflictingServices: Array<{
+    port: number;
+    processName: string;
+    pid: number;
+  }>;
+  suggestedSubdomain: string;
+}
+
+interface DeploymentHealth {
+  score: number;
+  status: 'optimal' | 'needs_attention' | 'critical';
+  issues: string[];
+  recommendations: string[];
+}
+
+interface DnsValidation {
+  configured: boolean;
+  pointsToThisServer: boolean;
+  resolvedIP?: string;
+  serverIP?: string;
+  message: string;
+}
+
+interface ServiceDetection {
+  services: Array<{
+    name: string;
+    port: number;
+    url?: string;
+  }>;
+}
+
 export function registerDeploymentCommands(program: Command) {
-  
+
   const deploy = program
     .command('deployment')
     .alias('deploy')
     .description('Deployment integration and analysis');
-  
+
   /**
    * Analyze deployment environment
    * amoeba deployment:analyze
@@ -28,19 +66,19 @@ export function registerDeploymentCommands(program: Command) {
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       const spinner = ora('Analyzing deployment environment...').start();
-      
+
       try {
         const config = await getConfig();
         const response = await apiRequest('GET', '/api/deployment/analyze', {}, config);
-        const data = await response.json();
-        
+        const data = await response.json() as DeploymentAnalysis;
+
         spinner.succeed(chalk.green('Analysis complete'));
-        
+
         if (options.json) {
           console.log(JSON.stringify(data, null, 2));
           return;
         }
-        
+
         console.log(`\n${chalk.bold('Deployment Analysis')}\n`);
         console.log(`Current Port:    ${chalk.cyan(data.currentPort)}`);
         console.log(`Port Available:  ${data.portAvailable ? chalk.green('✅ Yes') : chalk.red('❌ Conflict')}`);
@@ -48,24 +86,24 @@ export function registerDeploymentCommands(program: Command) {
         console.log(`Hostname:        ${chalk.dim(data.hostname)}`);
         console.log(`Nginx:           ${data.nginxInstalled ? chalk.green('✅ Installed') : chalk.yellow('⚠️  Not installed')}`);
         console.log(`SSL:             ${data.sslAvailable ? chalk.green('✅ Available') : chalk.yellow('⚠️  Not configured')}`);
-        
+
         if (data.conflictingServices && data.conflictingServices.length > 0) {
           console.log(chalk.yellow(`\n⚠️  Port Conflicts:`));
-          data.conflictingServices.forEach((s: any) => {
+          data.conflictingServices.forEach((s) => {
             console.log(`  Port ${s.port}: ${s.processName} (PID: ${s.pid})`);
           });
         }
-        
+
         console.log(chalk.dim(`\nSuggested subdomain: ${data.suggestedSubdomain}`));
         console.log('');
-        
+
       } catch (error: any) {
         spinner.fail(chalk.red('Analysis failed'));
         console.error(chalk.red(`Error: ${error.message}`));
         process.exit(1);
       }
     });
-  
+
   /**
    * Get deployment health score
    * amoeba deployment:health
@@ -78,39 +116,39 @@ export function registerDeploymentCommands(program: Command) {
       try {
         const config = await getConfig();
         const response = await apiRequest('GET', '/api/deployment/health', {}, config);
-        const data = await response.json();
-        
+        const data = await response.json() as DeploymentHealth;
+
         if (options.json) {
           console.log(JSON.stringify(data, null, 2));
           return;
         }
-        
+
         const statusColor = data.status === 'optimal' ? chalk.green :
-                          data.status === 'needs_attention' ? chalk.yellow :
-                          chalk.red;
-        
+          data.status === 'needs_attention' ? chalk.yellow :
+            chalk.red;
+
         console.log(`\n${chalk.bold('Deployment Health')}\n`);
         console.log(`Score:  ${statusColor(`${data.score}/100`)}`);
         console.log(`Status: ${statusColor(data.status.replace('_', ' ').toUpperCase())}`);
-        
+
         if (data.issues && data.issues.length > 0) {
           console.log(chalk.red('\nIssues:'));
-          data.issues.forEach((issue: string) => console.log(`  ${chalk.red('✗')} ${issue}`));
+          data.issues.forEach((issue) => console.log(`  ${chalk.red('✗')} ${issue}`));
         }
-        
+
         if (data.recommendations && data.recommendations.length > 0) {
           console.log(chalk.cyan('\nRecommendations:'));
-          data.recommendations.forEach((rec: string) => console.log(`  ${chalk.cyan('→')} ${rec}`));
+          data.recommendations.forEach((rec) => console.log(`  ${chalk.cyan('→')} ${rec}`));
         }
-        
+
         console.log('');
-        
+
       } catch (error: any) {
         console.error(chalk.red(`Error: ${error.message}`));
         process.exit(1);
       }
     });
-  
+
   /**
    * Generate nginx configuration
    * amoeba deployment:nginx
@@ -125,7 +163,7 @@ export function registerDeploymentCommands(program: Command) {
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       const spinner = ora('Generating nginx configuration...').start();
-      
+
       try {
         const config = await getConfig();
         const response = await apiRequest('POST', '/api/deployment/nginx-config', {
@@ -133,16 +171,16 @@ export function registerDeploymentCommands(program: Command) {
           amoebaPort: parseInt(options.port),
           sslEnabled: options.ssl || false,
         }, config);
-        
+
         const data = await response.json();
-        
+
         spinner.succeed(chalk.green('Nginx configuration generated'));
-        
+
         if (options.json) {
           console.log(JSON.stringify(data, null, 2));
           return;
         }
-        
+
         // Output to file or stdout
         if (options.output === '-') {
           console.log('\n' + data.config + '\n');
@@ -154,14 +192,14 @@ export function registerDeploymentCommands(program: Command) {
           console.log(chalk.dim('Test: sudo nginx -t'));
           console.log(chalk.dim('Reload: sudo systemctl reload nginx\n'));
         }
-        
+
       } catch (error: any) {
         spinner.fail(chalk.red('Generation failed'));
         console.error(chalk.red(`Error: ${error.message}`));
         process.exit(1);
       }
     });
-  
+
   /**
    * Validate DNS configuration
    * amoeba deployment:dns <domain>
@@ -172,36 +210,36 @@ export function registerDeploymentCommands(program: Command) {
     .option('--json', 'Output as JSON')
     .action(async (domain: string, options) => {
       const spinner = ora(`Checking DNS for ${domain}...`).start();
-      
+
       try {
         const config = await getConfig();
         const response = await apiRequest('POST', '/api/deployment/validate-dns', {
           domain,
         }, config);
-        
-        const data = await response.json();
-        
+
+        const data = await response.json() as DnsValidation;
+
         spinner.stop();
-        
+
         if (options.json) {
           console.log(JSON.stringify(data, null, 2));
           return;
         }
-        
+
         console.log(`\n${chalk.bold('DNS Validation')}\n`);
         console.log(`Domain:           ${chalk.cyan(domain)}`);
         console.log(`Configured:       ${data.configured ? chalk.green('✅ Yes') : chalk.red('❌ No')}`);
         console.log(`Points to Server: ${data.pointsToThisServer ? chalk.green('✅ Yes') : chalk.yellow('⚠️  No')}`);
-        
+
         if (data.resolvedIP) {
           console.log(`Resolves to:      ${chalk.cyan(data.resolvedIP)}`);
         }
         if (data.serverIP) {
           console.log(`Server IP:        ${chalk.cyan(data.serverIP)}`);
         }
-        
+
         console.log(chalk.dim(`\n${data.message}\n`));
-        
+
         if (!data.pointsToThisServer && data.resolvedIP && data.serverIP) {
           console.log(chalk.yellow('Action needed:'));
           console.log('  1. Go to your domain registrar (GoDaddy, Namecheap, etc.)');
@@ -211,14 +249,14 @@ export function registerDeploymentCommands(program: Command) {
           console.log('  3. Wait 5-30 minutes for DNS propagation');
           console.log('  4. Test again: amoeba deployment:dns ' + domain + '\n');
         }
-        
+
       } catch (error: any) {
         spinner.fail(chalk.red('DNS check failed'));
         console.error(chalk.red(`Error: ${error.message}`));
         process.exit(1);
       }
     });
-  
+
   /**
    * List detected services
    * amoeba deployment:services
@@ -231,21 +269,21 @@ export function registerDeploymentCommands(program: Command) {
       try {
         const config = await getConfig();
         const response = await apiRequest('GET', '/api/deployment/services', {}, config);
-        const data = await response.json();
-        
+        const data = await response.json() as ServiceDetection;
+
         if (options.json) {
           console.log(JSON.stringify(data.services, null, 2));
           return;
         }
-        
+
         console.log(`\n${chalk.bold('Detected Services')}\n`);
-        
+
         if (!data.services || data.services.length === 0) {
           console.log(chalk.dim('No other services detected\n'));
           return;
         }
-        
-        data.services.forEach((svc: any) => {
+
+        data.services.forEach((svc) => {
           console.log(`${chalk.cyan(svc.name)}`);
           console.log(`  Port: ${svc.port}`);
           if (svc.url) {
@@ -253,7 +291,7 @@ export function registerDeploymentCommands(program: Command) {
           }
           console.log('');
         });
-        
+
       } catch (error: any) {
         console.error(chalk.red(`Error: ${error.message}`));
         process.exit(1);
