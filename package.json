@@ -1,5 +1,5 @@
 {
-  "name": "amoeba-cli",
+  "name": "@quarkvibe/amoeba",
   "version": "1.0.0",
   "description": "AI content generation platform with multi-channel delivery, SMS control, and BYOK. Self-hosted and simple.",
   "keywords": [
@@ -16,13 +16,13 @@
     "self-hosted",
     "content-automation"
   ],
-  "homepage": "https://github.com/quarkvibe/ameoba_v2.0#readme",
+  "homepage": "https://github.com/quarkvibe/ameoba_client#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/quarkvibe/ameoba_v2.0.git"
+    "url": "git+https://github.com/quarkvibe/ameoba_client.git"
   },
   "bugs": {
-    "url": "https://github.com/quarkvibe/ameoba_v2.0/issues"
+    "url": "https://github.com/quarkvibe/ameoba_client/issues"
   },
   "author": "QuarkVibe Inc.",
   "contributors": [],

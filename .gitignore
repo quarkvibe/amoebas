@@ -108,3 +108,22 @@ CLI_PARITY_MATRIX.md
 QUICK_START*.md
 IMMEDIATE_ACTION*.md
 DEPLOYMENT_GUIDE*.md
+
+# Platform-specific (should not exist in public repo)
+landing/
+admin/
+marketplace/
+analytics/
+platform/
+docs-internal/
+
+# Deployment
+scripts/deployment/
+*.prod.yml
+nginx.prod.conf
+Dockerfile.prod
+
+# Internal docs
+INTERNAL_*.md
+SESSION_*.md
+DEPLOYMENT_GUIDE*.md
