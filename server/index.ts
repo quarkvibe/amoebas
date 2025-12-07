@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -7,6 +8,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { cronService } from "./services/cronService";
 import { telemetryService } from "./services/telemetryService";
+import { initializePGliteSchema } from "./db";
 // import { healthGuardianService } from "./services/healthGuardianService"; // REMOVED - unnecessary complexity
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
@@ -58,23 +60,25 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize PGlite schema if using local database
+  await initializePGliteSchema();
+
   const server = await registerRoutes(app);
 
-  // 404 handler for unmatched routes (must be before error handler)
-  app.use(notFoundHandler);
-
-  // Centralized error handler (must be last)
-  app.use(errorHandler);
-
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+  // Setup frontend serving BEFORE error handlers
+  // In development: Vite dev server with HMR
+  // In production: Static files from dist/public
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
+
+  // 404 handler for unmatched API routes only (frontend handles its own 404s)
+  app.use('/api', notFoundHandler);
+
+  // Centralized error handler (must be last)
+  app.use(errorHandler);
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.

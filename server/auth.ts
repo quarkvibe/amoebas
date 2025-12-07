@@ -3,6 +3,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
+import MemoryStore from "memorystore";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
@@ -15,13 +16,26 @@ declare global {
 
 export function setupAuth(app: Express) {
     const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-    const pgStore = connectPg(session);
-    const sessionStore = new pgStore({
-        conString: process.env.DATABASE_URL,
-        createTableIfMissing: true,
-        ttl: sessionTtl / 1000,
-        tableName: "sessions",
-    });
+
+    // Use PostgreSQL session store in production, memory store for development/testing
+    let sessionStore: session.Store;
+
+    if (process.env.DATABASE_URL) {
+        const pgStore = connectPg(session);
+        sessionStore = new pgStore({
+            conString: process.env.DATABASE_URL,
+            createTableIfMissing: true,
+            ttl: sessionTtl / 1000,
+            tableName: "sessions",
+        });
+        console.log("📦 Using PostgreSQL session store");
+    } else {
+        const MemStore = MemoryStore(session);
+        sessionStore = new MemStore({
+            checkPeriod: 86400000, // 24 hours
+        });
+        console.log("⚠️ Using in-memory session store (development only)");
+    }
 
     app.set("trust proxy", 1);
     if (!process.env.SESSION_SECRET) {

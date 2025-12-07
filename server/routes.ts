@@ -106,12 +106,20 @@ import { systemRouter } from "./routes/system";
 import { Router } from "express"; // Added import for Router
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // ... existing setup ...
+  // Simple health checks BEFORE auth middleware (for k8s probes)
+  app.get('/healthz', (req, res) => res.status(200).send('OK'));
+  app.get('/readyz', (req, res) => res.status(200).json({ status: 'ready' }));
+
+  // Auth middleware MUST be set up before routes that use req.isAuthenticated()
+  setupAuth(app);
 
   // Register Mothership Routes (Admin + Telemetry)
   const apiRouter = Router();
   registerMothershipRoutes(apiRouter);
   app.use(apiRouter);
+
+  // Register System Routes FIRST (includes public health check)
+  app.use("/api", systemRouter);
 
   // Register API routes
   // Register Colony Manager
@@ -122,16 +130,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register Integration Routes (API Keys, Credentials)
   app.use("/api", integrationsRouter);
-
-  // Register System Routes (Health, Config, Cron)
-  app.use("/api", systemRouter);
-
-  // Simple health checks BEFORE auth middleware
-  app.get('/healthz', (req, res) => res.status(200).send('OK'));
-  app.get('/readyz', (req, res) => res.status(200).json({ status: 'ready' }));
-
-  // Auth middleware
-  await setupAuth(app);
 
   // Auth routes
   app.get('/api/auth/user', (req, res) => {
