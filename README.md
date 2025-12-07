@@ -1,11 +1,13 @@
 # 🦠 Amoeba - AI Content Platform
 
 [![npm version](https://badge.fury.io/js/amoeba-cli.svg)](https://www.npmjs.com/package/amoeba-cli)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Amoeba%20Community-blue.svg)](LICENSE)
 
 **AI content generation platform with multi-channel delivery, SMS control, and BYOK.**
 
 Generate content with AI, deliver via email/SMS/voice/webhooks, control from your phone. Self-hosted with complete cost control.
+
+> **Note:** Amoeba is **source-available** (not open source). Free tier available. Paid features require a license key. See [LICENSE](LICENSE) and [LICENSING_FAQ.md](LICENSING_FAQ.md) for details.
 
 ```bash
 npm install -g amoeba-cli

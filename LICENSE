@@ -2,20 +2,214 @@ AMOEBA COMMUNITY LICENSE v1.0
 
 Copyright (c) 2025 QuarkVibe Inc.
 
-1. GRANT OF LICENSE
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to use the Software for the following purposes:
-(a) Personal use;
-(b) Development and testing;
-(c) Non-commercial use;
-(d) Commercial use by organizations with less than $1,000,000 USD in annual gross revenue ("Small Business").
+## 1. DEFINITIONS
 
-2. COMMERCIAL USE RESTRICTION
-Any use of the Software by an organization with $1,000,000 USD or more in annual gross revenue ("Enterprise") requires a paid commercial license from QuarkVibe Inc.
+"Software" means the Amoeba AI content generation platform, including all source code, documentation, and associated files.
 
-3. REDISTRIBUTION
-Redistribution of the Software in source or binary form is permitted provided that:
-(a) The above copyright notice and this permission notice appear in all copies.
-(b) You do not charge a fee for the Software itself (though you may charge for support or hosted services, subject to Section 2).
+"Personal Use" means use by an individual for non-commercial purposes.
 
-4. NO WARRANTY
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"Small Business" means an organization with less than $1,000,000 USD in annual gross revenue.
+
+"Enterprise" means an organization with $1,000,000 USD or more in annual gross revenue.
+
+"License Key" means a cryptographically signed key issued by QuarkVibe Inc. that unlocks features based on the purchased tier.
+
+## 2. GRANT OF LICENSE
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this Software, to use, copy, modify, and distribute the Software, subject to the following conditions:
+
+### 2.1 Free Tier (No License Key Required)
+You may use the Software with the following limitations:
+- Maximum 10 AI generations per month
+- Maximum 3 content templates
+- Maximum 2 data sources
+- Email delivery only
+- Community support only
+
+This free tier is available for:
+- Personal use
+- Development and testing
+- Educational purposes
+- Non-profit organizations
+
+### 2.2 Paid Tiers (License Key Required)
+To unlock additional features and remove limitations, you must obtain a valid License Key from QuarkVibe Inc. by purchasing a subscription at https://quarkvibe.com/pricing
+
+Available tiers:
+- **Pro** ($29/month): Unlimited generations, all delivery channels, priority support
+- **Business** ($99/month): Pro features + white-label, multi-instance, SLA
+- **Enterprise** (Custom pricing): Business features + dedicated support, custom development
+
+## 3. COMMERCIAL USE RESTRICTIONS
+
+### 3.1 Small Business
+Small Businesses may use the Free Tier or purchase a paid subscription. No additional restrictions apply.
+
+### 3.2 Enterprise
+Enterprises (organizations with $1,000,000+ annual revenue) must:
+- Purchase a Business or Enterprise license
+- May not use the Free Tier for production purposes
+- Must comply with the terms of their commercial agreement
+
+## 4. LICENSE KEY VALIDATION
+
+### 4.1 Server-Side Validation
+The Software includes server-side license validation that:
+- Verifies License Keys with QuarkVibe Inc.'s validation servers
+- Enforces feature limits based on the active tier
+- Requires periodic validation (daily) with grace period (7 days offline)
+
+### 4.2 Tampering Prohibited
+You may not:
+- Remove or bypass license validation mechanisms
+- Forge, modify, or share License Keys
+- Reverse engineer the license validation system
+- Create derivative works that circumvent licensing restrictions
+
+### 4.3 Consequences of Tampering
+Violation of Section 4.2 will:
+- Immediately terminate your license
+- May result in legal action
+- Void any support or warranty obligations
+
+## 5. REDISTRIBUTION
+
+### 5.1 Source Code
+You may redistribute the Software in source form provided that:
+- This license file is included in all copies
+- You do not charge a fee for the Software itself
+- You clearly indicate any modifications made
+- You do not imply endorsement by QuarkVibe Inc.
+
+### 5.2 Binary Distribution
+You may redistribute compiled/binary versions provided that:
+- This license file is included
+- You do not remove or modify license validation
+- You do not charge for the Software (you may charge for services)
+
+### 5.3 Hosted Services
+You may offer hosted services using the Software provided that:
+- Each end-user's usage complies with this license
+- You purchase appropriate licenses for your scale
+- You do not compete directly with QuarkVibe Inc.'s hosted offering
+
+## 6. MODIFICATIONS
+
+### 6.1 Permitted Modifications
+You may modify the Software for your own use, including:
+- Bug fixes
+- Feature additions
+- Integration with other systems
+- UI/UX customization
+
+### 6.2 Contributing Back
+Contributions to the official repository are welcome and encouraged:
+- Submit pull requests on GitHub
+- By contributing, you grant QuarkVibe Inc. a perpetual, worldwide license to use your contributions
+- Contributors will be credited in CONTRIBUTORS.md
+
+### 6.3 Derivative Works
+You may create derivative works provided that:
+- They comply with all terms of this license
+- They maintain license validation mechanisms
+- They do not compete directly with Amoeba
+
+## 7. ATTRIBUTION
+
+You must retain the following in all copies:
+- Copyright notice
+- License file
+- Attribution to QuarkVibe Inc.
+- Link to https://github.com/quarkvibe/ameoba_v2.0
+
+## 8. SUPPORT AND UPDATES
+
+### 8.1 Community Support
+Free Tier users receive:
+- Community support via GitHub Issues and Discussions
+- Access to public documentation
+- No SLA or guaranteed response time
+
+### 8.2 Paid Support
+Paid tier users receive support based on their subscription:
+- **Pro**: Priority email support, 48-hour response time
+- **Business**: Priority support + SLA, 24-hour response time
+- **Enterprise**: Dedicated support, custom SLA
+
+### 8.3 Updates
+All users receive:
+- Security updates
+- Bug fixes
+- Feature updates (subject to tier limitations)
+
+## 9. TERMINATION
+
+### 9.1 Automatic Termination
+Your license automatically terminates if you:
+- Violate any term of this license
+- Fail to pay subscription fees (for paid tiers)
+- Exceed usage limits without upgrading
+- Tamper with license validation
+
+### 9.2 Effect of Termination
+Upon termination:
+- You must cease all use of the Software
+- You must delete all copies in your possession
+- Your License Key will be deactivated
+- You may be liable for damages
+
+### 9.3 Survival
+Sections 4.3, 9.2, 10, and 11 survive termination.
+
+## 10. WARRANTY DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+QuarkVibe Inc. does not warrant that:
+- The Software will be error-free or uninterrupted
+- Defects will be corrected
+- The Software will meet your requirements
+- Results obtained will be accurate or reliable
+
+## 11. LIMITATION OF LIABILITY
+
+IN NO EVENT SHALL QUARKVIBE INC. BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+This includes but is not limited to:
+- Lost profits or revenue
+- Lost data
+- Business interruption
+- Indirect, incidental, or consequential damages
+
+Maximum liability is limited to the amount paid for the Software in the 12 months preceding the claim.
+
+## 12. GOVERNING LAW
+
+This license is governed by the laws of the State of Delaware, United States, without regard to conflict of law principles.
+
+## 13. ENTIRE AGREEMENT
+
+This license constitutes the entire agreement between you and QuarkVibe Inc. regarding the Software and supersedes all prior agreements.
+
+## 14. AMENDMENTS
+
+QuarkVibe Inc. may update this license from time to time. Continued use of the Software after changes constitutes acceptance of the new terms.
+
+## 15. CONTACT
+
+For licensing questions, commercial licenses, or support:
+- Email: licensing@quarkvibe.com
+- Website: https://quarkvibe.com
+- GitHub: https://github.com/quarkvibe/ameoba_v2.0
+
+---
+
+**ACKNOWLEDGMENT**
+
+By using the Software, you acknowledge that you have read this license, understand it, and agree to be bound by its terms.
+
+---
+
+**Version**: 1.0
+**Effective Date**: December 6, 2025
+**Last Updated**: December 6, 2025

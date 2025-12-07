@@ -1,8 +1,16 @@
 # Freemium Distribution Model - Implementation Summary
 
-## 🎯 What We Changed
+## 📦 Distribution Model
 
-Successfully implemented a **freemium open-source distribution model** for Amoeba, enabling public NPM distribution with tier-based feature gates.
+Amoeba uses a **freemium source-available model**:
+
+- ✅ **Public source code** - Visible on GitHub & NPM (auditable, not fully open source)
+- ✅ **Anyone can install** - `npm install -g amoeba-cli`
+- ✅ **Free tier** - 10 generations/month, no license key required
+- ✅ **Paid tiers** - License validation unlocks features
+- ⚠️ **Custom license** - Amoeba Community License (not MIT/Apache)
+
+**Important:** This is **source-available**, not open source. See [LICENSING_FAQ.md](LICENSING_FAQ.md) for details.
 
 ---
 
